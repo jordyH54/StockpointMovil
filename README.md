@@ -6,7 +6,7 @@ Compatible con **Android** y **iOS**, esta aplicación extiende la funcionalidad
 
 ---
 
-![Imagen de hijos](images/hijos.jpeg)
+<!-- ![Imagen de hijos](images/hijos.jpeg) -->
 
 
 
