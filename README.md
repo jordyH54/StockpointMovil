@@ -1,4 +1,4 @@
-# Sistema Híbrido de Gestión Empresarial – Mobile
+# Sistema Híbrido Desarrollado en .NET MAUIBlazor – Mobile
 
 Aplicación **móvil multiplataforma** desarrollada como parte de un **sistema híbrido**, compartiendo arquitectura, lógica de negocio y modelo de datos con la aplicación web del mismo proyecto.
 
@@ -28,7 +28,7 @@ El mismo núcleo del sistema fue aplicado en distintos dominios:
 Esta aplicación forma parte del mismo proyecto que:
 
 * 🌐 Aplicación Web:  
-  [Hybrid Management System Web](https://github.com/jordyH54/StockpointWeb)
+  [StockpointWeb](https://github.com/jordyH54/StockpointWeb)
 
 ---
 
@@ -69,7 +69,8 @@ Esta aplicación forma parte del mismo proyecto que:
 
 ---
 
-## 👨‍💻 Autor
+## 👨‍💻 Autores
 
-**Jordy Manuel Hernandez Rosario**  
-Ingeniero en Sistemas Computacionales
+**Jordy Manuel Hernandez Rosario** 
+**Aaron Cordova Hernandez**
+Ingenieros en Sistemas Computacionales
