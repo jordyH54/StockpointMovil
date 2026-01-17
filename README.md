@@ -28,7 +28,7 @@ El mismo núcleo del sistema fue aplicado en distintos dominios:
 Esta aplicación forma parte del mismo proyecto que:
 
 * 🌐 Aplicación Web:  
-  [Hybrid Management System Web](https://github.com/tuusuario/hybrid-management-system-web)
+  [Hybrid Management System Web](https://github.com/jordyH54/StockpointWeb)
 
 ---
 
