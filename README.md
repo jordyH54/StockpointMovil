@@ -12,7 +12,7 @@ Compatible con **Android** y **iOS**, esta aplicación extiende la funcionalidad
 
 
 ## 🧠 Descripción General
-Este proyecto consiste en el desarrollo de una aplicación de punto de venta con gestión de inventarios para la empresa Sistemas Electrónicos Industriales y de Comunicación S.A. de C.V.. Su objetivo principal es automatizar los procesos de venta y control de inventario, eliminando los errores y retrasos asociados a la gestión manual.
+Este proyecto consiste en el desarrollo de una aplicación de punto de venta con gestión de inventarios para la empresa **Sistemas Electrónicos Industriales y de Comunicación S.A. de C.V..** Su objetivo principal es automatizar los procesos de venta y control de inventario, eliminando los errores y retrasos asociados a la gestión manual.
 
 La aplicación cuenta con versión web y móvil, permitiendo acceder a los procesos principales desde dispositivos móviles y manteniendo sincronización en tiempo real con la plataforma web.
 
