@@ -1,0 +1,875 @@
+﻿@page "/producto"
+@inject Stockpoint.Shared.Models.GetClient ApiClient
+@inject Stockpoint.Shared.Services.AppStateService AppState
+@inject Stockpoint.Shared.Services.IconosService2 IconService
+@inject Stockpoint.Shared.Services.CatalogService CatalogService
+@using Stockpoint.Shared.Models
+@using Stockpoint.Shared.Services
+@using System.Text.Json
+@using System.Timers
+@using System.Text.Json.Serialization
+@using System.Globalization
+@inject IJSRuntime JSRuntime
+
+<style>
+   
+
+
+    /* Estilos principales del contenedor */
+    .mobile-container {
+        padding: 10px;
+        height: 90vh;
+        display: flex;
+        flex-direction: column;
+    }
+
+    /* Contenedor de la tabla con scroll */
+    
+
+    /* Estilos de la tabla */
+    
+
+    /* Estilos para el formulario móvil */
+    .mobile-form-container {
+        display: grid;
+        gap: 1rem;
+        padding: 1rem;
+    }
+
+    /* Secciones del formulario */
+    .form-section {
+        background: white;
+        border-radius: 10px;
+        padding: 1.5rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        margin-bottom: 1.5rem;
+    }
+
+    /* Títulos de sección */
+    .section-title {
+        font-size: 1.2rem;
+        font-weight: 600;
+        color: #2c3e50;
+        margin-bottom: 1.5rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid #f0f2f5;
+    }
+
+    /* Grid del formulario */
+    .form-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+
+    /* Secciones colapsables */
+    .collapsible-section {
+        transition: all 0.3s ease;
+    }
+
+    /* Encabezado de sección */
+    .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        cursor: pointer;
+        padding: 10px;
+        background-color: #f8f9fa;
+        border-radius: 5px;
+    }
+
+    /* Icono SVG */
+    .svg-icon {
+        width: 1.2rem;
+        height: 1.2rem;
+        margin-left: 0.5rem;
+        transition: transform 0.3s ease;
+    }
+
+    /* Título con icono */
+    .section-title {
+        display: flex;
+        align-items: center;
+        font-size: 1.2rem;
+        font-weight: 600;
+        color: #2c3e50;
+        margin: 0;
+    }
+
+    .menu-icon-wrapper svg {
+        display: block !important;
+        visibility: visible !important;
+        width: 16px !important;
+        height: 16px !important;
+        fill: black !important;
+        margin-right:2vh;
+    }
+
+    /* Media query para pantallas más grandes */
+    @@media (min-width: 768px) {
+        .form-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+</style>
+
+<!-- Contenedor principal -->
+<div class="mobile-container">
+    <!-- Mensajes de estado -->
+    @if (!string.IsNullOrEmpty(recoveryMessage))
+    {
+        <div class="alert @recoveryMessageClass alert-dismissible fade show mb-3 py-2">
+            <div class="d-flex align-items-center">
+                <i class="bi @(recoveryMessageClass.Contains("success") ? "bi-check-circle-fill" : "bi-exclamation-triangle-fill") me-2"></i>
+                <span>@recoveryMessage</span>
+                <button type="button" class="btn-close ms-auto" @onclick="ClearMessage"></button>
+            </div>
+        </div>
+    }
+    @if (isLoading)
+    {
+        <div class="loading-container">
+            <div class="spinner-container">
+                <div class="spinner"></div>
+            </div>
+            <p class="loading-text">Cargando Productos...</p>
+        </div>
+    }
+    else
+    {
+        <!-- Encabezado y botón nuevo -->
+    <div>
+        <h1>Productos</h1>
+        <div class="d-flex justify-content-end gap-2 mb-1">
+            <button @onclick="() => EditarItem(0)" class="btn btn-my-primary">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-plus-square" viewBox="0 0 16 16">
+                    <path d="M14 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1zM2 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2z" />
+                    <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4" />
+                </svg> Nuevo
+            </button>
+        </div>
+    </div>
+
+    <!-- Modo edición o visualización -->
+    @if (editar)
+    {
+            var iconSvg = IconService.obtenerIconos("Administración");
+            var iconSvg2 = IconService.obtenerIconos("Campo");
+        <!-- Formulario de edición -->
+        <div class="mobile-form-container">
+            <!-- Encabezado del formulario -->
+            <div class="row mb-1">
+                <div class="col-12">
+                    <h5 class="text-center text-black  p-2 rounded">IdProducto: @productoid</h5>
+                </div>
+            </div>
+                
+            <!-- SECCIÓN 1: INFORMACIÓN DEL PRODUCTO -->
+            <div class="form-section collapsible-section">
+                <div class="section-header" @onclick="ToggleInfoSection">
+                    <div class="section-title">
+                            Información del Producto
+                            <span class="menu-icon-wrapper ">
+                                @((MarkupString)iconSvg)
+                            </span>
+                            <svg class="svg-icon" viewBox="0 0 20 20">
+                            @if (showInfoSection)
+                            {
+                                <path d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" />
+                            }
+                            else
+                            {
+                                <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
+                            }
+                        </svg>
+                    </div>
+                </div>
+
+                @if (showInfoSection)
+                {
+                        
+                    <div class="form-grid">
+                        <!-- Campos de información del producto -->
+                        <div class="mb-3">
+                            <label class="form-label">Código</label>
+                            <input @bind="itemSeleccionado2.Codigo"
+                                   type="text" class="form-control" placeholder="Código">
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Producto</label>
+                            <input @bind="itemSeleccionado2.Productos"
+                                   type="text" class="form-control" placeholder="Nombre del producto">
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Descripción</label>
+                            <input @bind="itemSeleccionado2.Descripcion"
+                                   type="text" class="form-control" placeholder="Descripción">
+                        </div>
+                            <div class="mb-3">
+                                <label class="form-label">Imagen</label>
+                                <input @bind="itemSeleccionado2.Imagen"
+                                       type="text" class="form-control" placeholder="Imagen">
+                            </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Unidad</label>
+                            <SmartSelect Class="form-select form-select-sm"
+                                         catalogo="Unidad"
+                                         @bind-SelectedValue="selectedUnidad"
+                                         @ref="unidadSelect"
+                                         DefaultPrompt="Seleccione un Unidad"
+                                         EmptyMessage="No hay usuarios disponibles" />
+                        </div>
+                            <div class="mb-3">
+                                <label class="form-label">Estatus</label>
+                                <SmartSelect Class="form-select form-select-sm"
+                                             catalogo="Estatus Producto"
+                                             @bind-SelectedValue="selectedEstatusP"
+                                             @ref="estatusPSelect"
+                                             DefaultPrompt="Seleccione un Unidad"
+                                             EmptyMessage="No hay usuarios disponibles" />
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Categoria</label>
+                                <SmartSelect Class="form-select form-select-sm"
+                                             catalogo="CategoriaProductos"
+                                             @bind-SelectedValue="selectedIdCategoria"
+                                             @ref="categoriaSelect"
+                                             DefaultPrompt="Seleccione una Categoria"
+                                             EmptyMessage="No hay usuarios disponibles" />
+                            </div>
+                    </div>
+                }
+            </div>
+                
+            <!-- SECCIÓN 2: CANTIDADES Y PRECIOS -->
+
+            <div class="form-section collapsible-section">
+                <div class="section-header" @onclick="TogglePricesSection">
+                    <div class="section-title">
+                         Cantidades y Precios
+                            <span class="menu-icon-wrapper ">
+                                @((MarkupString)iconSvg2)
+                            </span>
+                        <svg class="svg-icon" viewBox="0 0 20 20">
+                            @if (showPricesSection)
+                            {
+                                <path d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" />
+                            }
+                            else
+                            {
+                                <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
+                            }
+                        </svg>
+                    </div>
+                </div>
+
+                @if (showPricesSection)
+                {
+                    <div class="form-grid">
+                        <!-- Columna 1: Cantidades -->
+                        <div>
+                            <div class="mb-3">
+                                <label class="form-label">Existencia</label>
+                                <input @bind="itemSeleccionado2.Existencia"
+                                       type="number" class="form-control" placeholder="0">
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Cantidad Mínima</label>
+                                <input @bind="itemSeleccionado2.CantidadMinima"
+                                       type="number" class="form-control" placeholder="0">
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Piezas por Caja</label>
+                                <input @bind="itemSeleccionado2.PiezasXcaja"
+                                       type="number" class="form-control" placeholder="0">
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Piezas por Paquete</label>
+                                <input @bind="itemSeleccionado2.PiezasXPaquete"
+                                       type="number" class="form-control" placeholder="0">
+                            </div>
+                        </div>
+
+                        <!-- Columna 2: Precios -->
+                        <div>
+                            <div class="mb-3">
+                                <label class="form-label">Costo por caja</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input @bind="itemSeleccionado2.CostoXCaja"
+                                           type="number" class="form-control" placeholder="0.00" step="0.01">
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Costo por pieza</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input @bind="CostoxP"
+                                           type="number" class="form-control" placeholder="0.00" step="0.01" readonly>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Costo por paquete</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input @bind="CostoxPaque"
+                                           type="number" class="form-control" placeholder="0.00" step="0.01" readonly>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Precio Público</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input @bind="itemSeleccionado2.Precio"
+                                           type="number" class="form-control" placeholder="0.00">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Utilidades -->
+                    <div class="form-grid mt-3">
+                        <div class="mb-3">
+                            <label class="form-label">Utilidad por producto</label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input type="text" class="form-control bg-light"
+                                       @bind="uxProductoDisplay"
+                                       readonly>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Utilidad por Caja</label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input type="text" class="form-control bg-light"
+                                       @bind="uxCajaDisplay"
+                                       readonly>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+
+            <!-- Botones de acción -->
+            <div class="d-flex justify-content-center gap-3 mt-4">
+                <button @onclick="() => CancelarEdicion()" class="btn btn-danger px-4 py-2">
+                    Cancelar
+                </button>
+                    <button @onclick="() => GuardarProducto()" class="btn btn-my-primary px-4 py-2">
+                    <i class="bi bi-save"></i> Guardar
+                </button>
+            </div>
+        </div>
+    }
+    else
+    {
+        <!-- Modo de visualización -->
+        <div>
+            <input type="text"
+                   class="form-control"
+                   placeholder="Buscar por nombre o código..."
+                   @bind="TextoBusqueda"
+                   @bind:event="oninput" />
+        </div>
+        
+        @if (productosApi.Any())
+        {
+        <div class="table-container">
+            
+                <table class="mobile-table mt-2">
+                    <thead>
+                        <tr>
+                            <th >#</th>
+                            <th >Producto</th>
+                            <th >Codigo</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in productosApi)
+                        {
+                            <tr>
+                                <td>
+                                    <i @onclick="@(() => EditarItem(item.idProducto))"
+                                       class="fas fa-edit cmdEditarCatalogo accion"
+                                       style="margin-left:8px;"
+                                       title="@($"Editar {item.idProducto}")">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="#007bff" class="bi bi-pencil-square" viewBox="0 0 16 16">
+                                            <path d="M15.502 1.94a.5.5 0 0 1 0 .706L14.459 3.69l-2-2L13.502.646a.5.5 0 0 1 .707 0l1.293 1.293zm-1.75 2.456-2-2L4.939 9.21a.5.5 0 0 0-.121.196l-.805 2.414a.25.25 0 0 0 .316.316l2.414-.805a.5.5 0 0 0 .196-.12l6.813-6.814z" />
+                                            <path fill-rule="evenodd" d="M1 13.5A1.5 1.5 0 0 0 2.5 15h11a1.5 1.5 0 0 0 1.5-1.5v-6a.5.5 0 0 0-1 0v6a.5.5 0 0 1-.5.5h-11a.5.5 0 0 1-.5-.5v-11a.5.5 0 0 1 .5-.5H9a.5.5 0 0 0 0-1H2.5A1.5 1.5 0 0 0 1 2.5z" />
+                                        </svg>
+                                    </i>
+                                </td>
+                                <td>@item.Productos</td>
+                                <td>@item.Codigo</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            
+        </div>
+        }
+    }
+    
+}
+</div>
+    
+@code {
+    #region VARIABLES DE ESTADO Y DATOS
+    // Listas de productos
+    private List<vwProducto> productosCompletos = new();
+    public List<vwProducto> productosApi = new();
+
+    // Estado de la UI
+    private bool isLoading = true;
+    private bool showInfoSection = false;
+    private bool showPricesSection = false;
+    private bool hasError = false;
+    private bool editar = false;
+
+    // Mensajería
+    private Timer messageTimer;
+    private int messageTimeout = 5000;
+    private string recoveryMessage = string.Empty;
+    private string recoveryMessageClass = "alert-info";
+
+    // Producto seleccionado
+    private vwProducto itemSeleccionado2 = new();
+    private string productoid = string.Empty;
+
+    // Selectores y controles
+    private SmartSelect unidadSelect, estatusPSelect,categoriaSelect;
+    private string _selectedUnidad, _selectedEstatusP, _selectedIdCategoria;
+
+    // Búsqueda y filtrado
+    private string _textoBusqueda = string.Empty;
+
+    // Cálculos de precios y utilidades
+    public double? CostoxP;
+    public double? CostoxPaque;
+    private string? _uxProducto;
+    private string? _uxCaja;
+    public string uxCajaDisplay { get; set; }
+    public string uxProductoDisplay { get; set; }
+    #endregion
+
+    #region PROPIEDADES
+    // Propiedad para el texto de búsqueda con filtrado automático
+    public string TextoBusqueda
+    {
+        get => _textoBusqueda;
+        set
+        {
+            if (_textoBusqueda != value)
+            {
+                _textoBusqueda = value;
+                FiltrarProductos();
+            }
+        }
+    }
+
+    // Propiedad para la utilidad por producto
+    public string uxProducto
+    {
+        get => _uxCaja;
+        set
+        {
+            _uxCaja = value;
+            uxProductoDisplay = GetFirstThreeAfterDot(value);
+        }
+    }
+
+    // Propiedad para la utilidad por caja
+    public string uxCaja
+    {
+        get => _uxCaja;
+        set
+        {
+            _uxCaja = value;
+            uxCajaDisplay = GetFirstThreeAfterDot(value);
+        }
+    }
+
+    // Propiedad para la unidad seleccionada
+
+    private string selectedIdCategoria
+    {
+        get => _selectedIdCategoria;
+        set
+        {
+            if (_selectedIdCategoria != value)
+            {
+                _selectedIdCategoria = value;
+                if (itemSeleccionado2 != null && int.TryParse(value, out int idCategoria))
+                {
+                    itemSeleccionado2.idCategoria = idCategoria;
+                }
+            }
+        }
+    }
+
+
+    private string selectedUnidad
+    {
+        get => _selectedUnidad;
+        set
+        {
+            if (_selectedUnidad != value)
+            {
+                _selectedUnidad = value;
+                if (itemSeleccionado2 != null && int.TryParse(value, out int idUnidad))
+                {
+                    itemSeleccionado2.idUnidad = idUnidad;
+                }
+            }
+        }
+    }
+    private string selectedEstatusP
+    {
+        get => _selectedEstatusP;
+        set
+        {
+            if (_selectedEstatusP != value)
+            {
+                _selectedEstatusP = value;
+                if (itemSeleccionado2 != null && int.TryParse(value, out int idEstatusP))
+                {
+                    itemSeleccionado2.idEstatus = idEstatusP;
+                }
+            }
+        }
+    }
+    #endregion
+
+    #region MÉTODOS DEL CICLO DE VIDA
+    protected override async Task OnInitializedAsync()
+    {
+        AppState.CurrentPage = "Producto";
+        uxCajaDisplay = GetFirstThreeAfterDot(uxCaja);
+
+        // Configuración del temporizador de mensajes
+        messageTimer = new Timer(messageTimeout);
+        messageTimer.Elapsed += (sender, e) => ClearMessage();
+        messageTimer.AutoReset = false;
+
+        await cargarProductos();
+    }
+
+    public void Dispose()
+    {
+        messageTimer?.Dispose();
+    }
+    #endregion
+
+    #region MÉTODOS DE UTILIDAD
+    // Formatea un número para mostrar solo 3 decimales después del punto
+    private string GetFirstThreeAfterDot(string input)
+    {
+        if (string.IsNullOrEmpty(input))
+            return string.Empty;
+
+        int dotIndex = input.IndexOf('.');
+        if (dotIndex == -1 || dotIndex >= input.Length - 1)
+            return input;
+
+        string afterDot = input.Substring(dotIndex + 1);
+        string firstThree = afterDot.Length > 3 ? afterDot.Substring(0, 3) : afterDot;
+
+        return input.Substring(0, dotIndex + 1) + firstThree;
+    }
+    #endregion
+
+    #region MÉTODOS DE LA INTERFAZ DE USUARIO
+    // Alternar visibilidad de secciones
+    private void ToggleInfoSection() => showInfoSection = !showInfoSection;
+    private void TogglePricesSection() => showPricesSection = !showPricesSection;
+
+    // Manejo de mensajes temporales
+    private void SetTemporaryMessage(string message, string messageClass)
+    {
+        recoveryMessage = message;
+        recoveryMessageClass = messageClass;
+        messageTimer.Stop();
+        messageTimer.Start();
+        StateHasChanged();
+    }
+
+    private async void ClearMessage()
+    {
+        await InvokeAsync(() =>
+        {
+            recoveryMessage = string.Empty;
+            recoveryMessageClass = string.Empty;
+            StateHasChanged();
+        });
+    }
+    #endregion
+
+    #region MÉTODOS DE OPERACIONES CON PRODUCTOS
+    // Carga la lista de productos desde el servidor
+    public async Task cargarProductos()
+    {
+        var clientHandler = new GetClient
+        {
+            R = new cResul
+            {
+                metodos = "obtGetClient",
+                Token = "tu_token_si_es_necesario",
+                modulo = "Usuarios"
+            }
+        }.GetClientConfigured();
+
+        var recoveryRequest = new
+        {
+            R = new cResul
+            {
+                modulo = AppState.CurrentPage,
+                metodos = "Cargar",
+                Token = AppState.SysToken
+            }
+        };
+
+        try
+        {
+            var response = await clientHandler.PostAsJsonAsync("WebServices/ProductosA", recoveryRequest);
+            if (response.IsSuccessStatusCode)
+            {
+                productosCompletos = await response.Content.ReadFromJsonAsync<List<vwProducto>>() ?? new List<vwProducto>();
+                productosApi = new List<vwProducto>(productosCompletos);
+            }
+            else
+            {
+                hasError = true;
+                SetTemporaryMessage("Error al cargar Productos", "alert-danger");
+            }
+        }
+        catch (Exception ex)
+        {
+            hasError = true;
+            SetTemporaryMessage($"Error al cargar Productos: {ex.Message}", "alert-danger");
+        }
+        finally
+        {
+            isLoading = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    // Filtra los productos según el texto de búsqueda
+    private void FiltrarProductos()
+    {
+        if (string.IsNullOrWhiteSpace(TextoBusqueda))
+        {
+            productosApi = new List<vwProducto>(productosCompletos);
+        }
+        else
+        {
+            var busqueda = TextoBusqueda.ToLower();
+            productosApi = productosCompletos
+                .Where(p =>
+                    (p.Productos?.ToLower().Contains(busqueda) ?? false) ||
+                    (p.Codigo?.ToLower().Contains(busqueda) ?? false))
+                .ToList();
+        }
+    }
+    #endregion
+
+    #region MÉTODOS DE EDICIÓN DE PRODUCTOS
+    // Carga un producto para edición
+    public async Task EditarItem(int id)
+    {
+        try
+        {
+            editar = true;
+            productoid = id.ToString();
+
+            var clientHandler = new GetClient
+            {
+                R = new cResul
+                {
+                    metodos = "obtGetClient",
+                    Token = "tu_token_si_es_necesario",
+                    modulo = "Usuarios"
+                }
+            }.GetClientConfigured();
+
+            var recoveryRequest = new
+            {
+                movil = 1,
+                idProducto = id,
+                R = new cResul
+                {
+                    modulo = AppState.CurrentPage,
+                    metodos = "Cargar",
+                    Token = AppState.SysToken
+                }
+            };
+
+            var response = await clientHandler.PostAsJsonAsync("WebServices/ProductosA", recoveryRequest);
+            if (response.IsSuccessStatusCode)
+            {
+                productosApi = await response.Content.ReadFromJsonAsync<List<vwProducto>>() ?? new List<vwProducto>();
+
+                if (productosApi.Any())
+                {
+                    // Copia los datos del producto seleccionado
+                    itemSeleccionado2 = new vwProducto
+                    {
+                        Descripcion = productosApi[0].Descripcion,
+                        PiezasXcaja = productosApi[0].PiezasXcaja,
+                        idUnidad = productosApi[0].idUnidad,
+                        CantidadMinima = productosApi[0].CantidadMinima,
+                        Existencia = productosApi[0].Existencia,
+                        idCategoria = productosApi[0].idCategoria,
+                        PiezasXPaquete = productosApi[0].PiezasXPaquete,
+                        idProducto = productosApi[0].idProducto,
+                        idEstatus = productosApi[0].idEstatus,
+                        Precio = productosApi[0].Precio,
+                        CostoXCaja = productosApi[0].CostoXCaja,
+                        Productos = productosApi[0].Productos,
+                        Codigo = productosApi[0].Codigo,
+                        Unidad = productosApi[0].Unidad,
+                        Categoria = productosApi[0].Categoria,
+                        Imagen = productosApi[0].Imagen,
+                        Estatus = productosApi[0].Estatus,
+                        
+                    };
+
+                    // Calcula valores derivados
+                    selectedUnidad =itemSeleccionado2.idUnidad.ToString();
+                    selectedEstatusP = itemSeleccionado2.idEstatus.ToString();
+                    selectedIdCategoria = itemSeleccionado2.idCategoria.ToString();
+                    CostoxP = itemSeleccionado2.CostoXCaja / itemSeleccionado2.PiezasXcaja;
+                    CostoxPaque = CostoxP * itemSeleccionado2.PiezasXPaquete;
+                    uxProducto = (itemSeleccionado2.Precio - CostoxP).ToString();
+                    uxCaja = ((itemSeleccionado2.Precio * itemSeleccionado2.PiezasXcaja) - itemSeleccionado2.CostoXCaja).ToString();
+
+                    // Actualiza el selector de unidad si existe
+                    if (unidadSelect != null)
+                        await unidadSelect.SetSelectedValue(selectedUnidad);
+                    if (estatusPSelect!= null)
+                        await estatusPSelect.SetSelectedValue(selectedEstatusP);
+                    if (categoriaSelect != null)
+                        await categoriaSelect.SetSelectedValue(selectedIdCategoria);
+                }
+            }
+            else
+            {
+                SetTemporaryMessage("Error al cargar el producto", "alert-danger");
+            }
+        }
+        catch (Exception ex)
+        {
+            SetTemporaryMessage($"Error al editar producto: {ex.Message}", "alert-danger");
+        }
+
+        StateHasChanged();
+    }
+
+    // Cancela la edición y vuelve al modo de visualización
+    private async Task CancelarEdicion()
+    {
+        TextoBusqueda = string.Empty;
+        editar = false;
+        itemSeleccionado2 = new vwProducto();
+        await OnInitializedAsync();
+        StateHasChanged();
+    }
+
+    // Guarda los cambios del producto en el servidor
+    private async Task GuardarProducto()
+     {
+        try
+        {
+            if (string.IsNullOrEmpty(selectedUnidad) || !int.TryParse(selectedUnidad, out int idUnidadValue))
+            {
+                SetTemporaryMessage("Debe seleccionar una unidad válida", "alert-danger");
+                return;
+            }
+
+            if (string.IsNullOrEmpty(selectedEstatusP) || !int.TryParse(selectedEstatusP, out int idEstatusValue))
+            {
+                SetTemporaryMessage("Debe seleccionar un estatus válido", "alert-danger");
+                return;
+            }
+            if (string.IsNullOrEmpty(selectedIdCategoria) || !int.TryParse(selectedIdCategoria, out int idCategoriaValue))
+            {
+                SetTemporaryMessage("Debe seleccionar una Categoria válido", "alert-danger");
+                return;
+            }
+
+            var clientHandler = new GetClient
+            {
+                R = new cResul
+                {
+                    metodos = "obtGetClient",
+                    Token = "tu_token_si_es_necesario",
+                    modulo = "Usuarios"
+                }
+            }.GetClientConfigured();
+
+            var saveRequest = new
+
+            {
+                Descripcion = itemSeleccionado2.Descripcion,
+                idProducto = itemSeleccionado2.idProducto,
+                PiezasXcaja = itemSeleccionado2.PiezasXcaja,
+                idUnidad = idUnidadValue,
+                PiezasXPaquete = itemSeleccionado2.PiezasXPaquete,
+                CantidadMinima = itemSeleccionado2.CantidadMinima,
+                Existencia = itemSeleccionado2.Existencia,
+                idCategoria = idCategoriaValue,
+                idEstatus = idEstatusValue,
+                CostoXCaja = itemSeleccionado2.CostoXCaja,
+                PrecioPublico = itemSeleccionado2.Precio,
+                Productos = itemSeleccionado2.Productos,
+                Codigo = itemSeleccionado2.Codigo,
+                Imagen = itemSeleccionado2.Imagen,
+
+
+                R = new cResul
+                {
+                    modulo = AppState.CurrentPage,
+                    metodos = "Guardar",
+                    Token = AppState.SysToken
+                }
+            };
+
+            var response = await clientHandler.PostAsJsonAsync("WebServices/Productos", saveRequest);
+
+            if (response.IsSuccessStatusCode)
+            {
+                SetTemporaryMessage("Producto guardado correctamente", "alert-success");
+                editar = false;
+                
+                if (unidadSelect != null)
+                    await unidadSelect.ReloadCatalogAsync();
+                if (estatusPSelect != null)
+                    await estatusPSelect.ReloadCatalogAsync();
+                if (categoriaSelect != null)
+                    await categoriaSelect.ReloadCatalogAsync();
+                await cargarProductos();
+            }
+            else
+            {
+                SetTemporaryMessage("Error al guardar el producto", "alert-danger");
+            }
+        }
+        catch (Exception ex)
+        {
+            SetTemporaryMessage($"Error al guardar: {ex.Message}", "alert-danger");
+        }
+    }
+    #endregion
+}
+

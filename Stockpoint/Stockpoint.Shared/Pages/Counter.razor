@@ -1,0 +1,732 @@
+﻿@page "/counter"
+@inject Stockpoint.Shared.Models.GetClient ApiClient
+@inject Stockpoint.Shared.Services.AppStateService AppState
+@using Stockpoint.Shared.Models
+@using System.Timers
+@implements IDisposable
+@code {
+    protected override void OnInitialized()
+    {
+        
+        AppState.CurrentPage = "Catalogo"; // Actualiza el nombre en el layout
+    }
+}
+<style>
+    
+    .alert {
+        transition: opacity 0.5s ease-out;
+    }
+
+    .bgTabla{
+        background:white;
+    }
+
+        .alert.fade {
+            opacity: 0;
+        }
+
+    .btn-close {
+        padding: 0.75rem 1rem;
+    }
+    /* Asegurar que el contenedor ocupe todo el espacio disponible */
+    /* Transición para el formulario de edición */
+    .edicion-container {
+        transition: all 0.3s ease;
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+        .edicion-container.mostrar {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    .container.mt-3 {
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+    }
+
+    /* Estilo para el ícono de edición */
+    .cmdEditarCatalogo {
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+        .cmdEditarCatalogo:hover {
+            transform: scale(1.1);
+            color: #0d6efd;
+        }
+
+    /* Asegurar que el formulario de edición ocupe todo el espacio */
+    .container-fluid.p-0.h-100 {
+        flex: 1;
+    }
+      
+</style>
+
+<PageTitle>Roles del Sistema</PageTitle>
+
+<div class="container mt-3">
+    @if (hasError)
+    {
+        <div class="alert alert-danger">
+            <h4>Error</h4>
+            <p>@errorMessage</p>
+            <button class="btn btn-secondary" @onclick="Recargar">Reintentar</button>
+        </div>
+    }
+    else if (isLoading)
+    {
+            <div class="loading-container">
+                <div class="spinner-container">
+                    <div class="spinner"></div>
+                </div>
+                <p class="loading-text">Cargando Catálogo...</p>
+            </div>
+    }
+    else
+    {
+        @if (!hasEditar)
+        {
+            <div class="card bg-transparent">
+                @if (!string.IsNullOrEmpty(recoveryMessage))
+                {
+                    <div class="alert @recoveryMessageClass">@recoveryMessage</div>
+                }
+                
+                    <h1>Catálogos</h1>
+                
+                <div class="card-body">
+
+                    <select class="form-select" @onchange="OnCatalogSelected">
+                        <option value="">-- Seleccione un Catálogo --</option>
+                        @foreach (var elemento in elementos)
+                        {
+                            <option value="@elemento.Valor">@elemento.Texto</option>
+                        }
+                    </select>
+
+
+                </div>
+            </div>
+
+            @if (elementosTabla.Any())
+            {
+                <div class="table-container">
+                    <div style="text-align: right; margin:4px;">
+                        <button @onclick="CrearElemento" class="btn btn-my-primary">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-plus-square" viewBox="0 0 16 16">
+                                <path d="M14 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1zM2 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2z" />
+                                <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4" />
+                            </svg> Crear
+                        </button>
+                    </div>
+                    <table class="mobile-table  mt-2">
+                        <thead>
+                            <tr>
+                                <th >#</th>
+                                <th >Descripción</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in elementosTabla)
+                            {
+                                <tr class="tblBitacora ReglonActivo bg-white">
+                                    <td>
+                                        <i @onclick="@(() => EditarItem(item.Valor))"
+                                        class="fas fa-edit cmdEditarCatalogo accion"
+                                        style="margin-left:8px;"
+                                        title="@($"Editar {item.Texto}")">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="#007bff" class="bi bi-pencil-square" viewBox="0 0 16 16">
+                                                <path d="M15.502 1.94a.5.5 0 0 1 0 .706L14.459 3.69l-2-2L13.502.646a.5.5 0 0 1 .707 0l1.293 1.293zm-1.75 2.456-2-2L4.939 9.21a.5.5 0 0 0-.121.196l-.805 2.414a.25.25 0 0 0 .316.316l2.414-.805a.5.5 0 0 0 .196-.12l6.813-6.814z"/>
+                                                <path fill-rule="evenodd" d="M1 13.5A1.5 1.5 0 0 0 2.5 15h11a1.5 1.5 0 0 0 1.5-1.5v-6a.5.5 0 0 0-1 0v6a.5.5 0 0 1-.5.5h-11a.5.5 0 0 1-.5-.5v-11a.5.5 0 0 1 .5-.5H9a.5.5 0 0 0 0-1H2.5A1.5 1.5 0 0 0 1 2.5z"/>
+                                            </svg>
+                                        </i>
+                                    </td>
+                                    <td >@item.Texto </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            else if (!string.IsNullOrEmpty(seleccionadoC))
+            {
+                <div class="alert alert-danger mt-3">
+                    No tienes permisos
+                </div>
+            }
+
+
+        }
+        else
+        {
+            <div class="container-fluid p-0 h-100 d-flex flex-column edicion-container @(hasEditar ? "mostrar" : "")" style="background-color: #f8f9fa;">
+                <!-- Header con título y botón de regreso -->
+                <div class="sticky-top bg-white shadow-sm p-3 d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0 text-black">
+                        <i class="fas fa-edit me-2"></i>Editar Elemento
+                    </h4>
+                    <button @onclick="CancelarEdicion" class="btn btn-danger">
+                        <i class="fas fa-arrow-left me-1"></i> Regresar
+                    </button>
+                </div>
+
+                <!-- Cuerpo del formulario con scroll -->
+                <div class="flex-grow-1 overflow-auto p-4">
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-body">
+                            <!-- Sección de ID -->
+                            <div class="mb-4">
+                                <label class="form-label fw-bold text-muted small">ID</label>
+                                <input @bind="itemSeleccionado2.Id_Catalogo" class="form-control form-control-lg"
+                                type="number" disabled style="background-color: #f1f3f5;">
+                            </div>
+
+                            <!-- Primera fila de campos -->
+                            <div class="row g-3 mb-4">
+                                <div class="col-12 col-md-4">
+                                    <div class="form-floating">
+                                        <input @bind="itemSeleccionado2.IdOrigen" id="ipEs"
+                                        class="form-control border-primary border-2"
+                                        type="number" placeholder=" ">
+                                        <label for="ipEs" class="text-muted">
+                                            <i class="fas fa-tags me-2"></i>Tipos de Catálogo
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div class="col-12 col-md-4">
+                                    <div class="form-floating">
+                                        <input @bind="itemSeleccionado2.IdOrigen" id="ipOr"
+                                        class="form-control border-success border-2"
+                                        type="number" placeholder=" ">
+                                        <label for="ipOr" class="text-muted">
+                                            <i class="fas fa-map-marker-alt me-2"></i>Origen
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div class="col-12 col-md-4">
+                                    <div class="form-floating">
+                                        <input @bind="itemSeleccionado2.Catalogo" id="ipCa"
+                                        class="form-control border-info border-2"
+                                        type="text" placeholder=" ">
+                                        <label for="ipCa" class="text-muted">
+                                            <i class="fas fa-folder me-2"></i>Catálogo
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Segunda fila de campos -->
+                            <div class="row g-3 mb-4">
+                                <div class="col-12 col-md-4">
+                                    <div class="form-floating">
+                                        <input @bind="itemSeleccionado2.Orden" id="ipOrd"
+                                        class="form-control border-warning border-2"
+                                        type="number" placeholder=" ">
+                                        <label for="ipOrd" class="text-muted">
+                                            <i class="fas fa-sort-numeric-up me-2"></i>Orden
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div class="col-12 col-md-4">
+                                    <div class="form-group">
+                                        <label class="form-label fw-bold text-muted small">
+                                            <i class="fas fa-toggle-on me-2"></i>Default
+                                        </label>
+                                        <CustomSwitch Value="@itemSeleccionado2.ValorDefault"
+                                        ValueChanged="@(async (value) => {
+                                            itemSeleccionado2.ValorDefault = value;
+                                            await InvokeAsync(StateHasChanged);
+                                        })" />
+                                    </div>
+                                </div>
+
+                                <div class="col-12 col-md-4">
+                                    <div class="form-floating">
+                                        <input @bind="itemSeleccionado2.Valor" id="ipVa"
+                                        class="form-control border-danger border-2"
+                                        type="text" placeholder=" ">
+                                        <label for="ipVa" class="text-muted">
+                                            <i class="fas fa-hashtag me-2"></i>Valor
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Área de texto grande -->
+                            <div class="mb-3">
+                                <label class="form-label fw-bold text-muted small">
+                                    <i class="fas fa-align-left me-2"></i>Descripción
+                                </label>
+                                <textarea @bind="itemSeleccionado2.Descripcion" id="ipTe"
+                                class="form-control border-2 border-secondary"
+                                style="height: 150px;"
+                                placeholder="Escribe aquí la descripción..."
+                                maxlength="1000"></textarea>
+                                <div class="form-text text-end">@(itemSeleccionado2?.Descripcion?.Length ?? 0)/1000 caracteres</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Botones fijos en la parte inferior -->
+                <div class="p-3 bg-white border-top shadow-lg">
+                    <div class="d-flex justify-content-between">
+
+                        <div>
+                            <button @onclick="GuardarElementosCatalogo" class="btn btn-my-primary px-4 me-2">
+                                Guardar
+                            </button>
+                            @* <button @onclick="CrearElementosCatalogo" class="btn btn-my-primary px-4">
+                                Crear Nuevo
+                            </button> *@
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+
+
+    }
+</div>
+
+@code {
+    private string recoveryMessage = string.Empty;
+    private string recoveryMessageClass = "alert-info";
+    private List<cElemento> elementos = new();
+    private List<cElemento> elementosTabla = new();
+    private List<tblCatalogo> elementosCatalogo = new();
+    private bool isLoading = true;
+    private bool hasError = false;
+    private bool hasEditar =  false;
+    private cElemento itemSeleccionado;
+    private string errorMessage = string.Empty;
+    private string selectedCatalogText = string.Empty;
+    private string seleccionadoC = string.Empty;
+    private tblCatalogo itemSeleccionado2 = new();
+    private Timer messageTimer;
+    private int messageTimeout = 5000;
+
+    protected override async Task OnInitializedAsync()
+    {
+        messageTimer = new Timer(messageTimeout);
+        messageTimer.Elapsed += (sender, e) => ClearMessage();
+        messageTimer.AutoReset = false;
+        await CargarCatalogosIniciales();
+    }
+    private async void ClearMessage()
+    {
+        await InvokeAsync(() =>
+        {
+            recoveryMessage = string.Empty;
+            recoveryMessageClass = string.Empty;
+            StateHasChanged();
+        });
+    }
+
+    private void SetTemporaryMessage(string message, string messageClass)
+    {
+        recoveryMessage = message;
+        recoveryMessageClass = messageClass;
+        messageTimer.Stop();
+        messageTimer.Start();
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        messageTimer?.Dispose();
+    }
+    private async Task CargarCatalogosIniciales()
+    {
+        try
+        {
+            isLoading = true;
+            hasError = false;
+            StateHasChanged();
+
+            var client = new GetClient
+            {
+                R = new cResul
+                {
+                    metodos = "obtGetClient",
+                    Token = AppState.SysToken,
+                    modulo =  "Usuarios"
+                }
+            }.GetClientConfigured();
+
+            var recoveryRequest = new
+            {
+                Catalogo = "Tipo de catalogo",
+                R = new cResul
+                {
+                    modulo = AppState.CurrentPage,
+                    metodos = "Cargar",
+                    Token = AppState.SysToken,
+                }
+            };
+
+            var response = await client.PostAsJsonAsync("WebServices/ElementosA", recoveryRequest);
+
+            if (response.IsSuccessStatusCode)
+            {
+                elementos = await response.Content.ReadFromJsonAsync<List<cElemento>>();
+            }
+
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error al cargar catálogos: no tienes permisos";
+            hasError = true;
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    // private async Task OnCatalogSelected(ChangeEventArgs e)
+    // {
+    //     seleccionadoC = e.Value?.ToString();
+    //     selectedCatalogText = elementos.FirstOrDefault(x => x.Valor == seleccionadoC)?.Texto ?? string.Empty;
+
+    //     if (string.IsNullOrEmpty(seleccionadoC))
+    //     {
+    //         await CargarElementosCatalogo();
+
+    //     }
+    //     else
+    //     {
+    //         elementosTabla.Clear();
+    //     }
+
+    //     try
+    //     {
+    //         isLoading = true;
+    //         StateHasChanged();
+
+    //         var client = new GetClient
+    //         {
+    //             R = new cResul
+    //             {
+    //                 metodos = "obtGetClient",
+    //                 Token = AppState.SysToken,
+    //                 Pantalla = "Usuarios"
+    //             }
+    //         }.GetClientConfigured();
+
+    //         var recoveryRequest = new
+    //         {
+    //             Catalogo = seleccionadoC,
+    //             R = new cResul
+    //             {
+    //                 Pantalla = AppState.CurrentPage,
+    //                 metodos = "Cargar",
+    //                 Token = AppState.SysToken,
+    //             }
+    //         };
+
+    //         var response = await client.PostAsJsonAsync("WebServices/CatalogosA", recoveryRequest);
+
+    //         if (response.IsSuccessStatusCode)
+    //         {
+    //             elementosTabla = await response.Content.ReadFromJsonAsync<List<cElemento>>();
+    //             recoveryMessage = string.Empty;
+    //         }
+    //         else
+    //         {
+    //             recoveryMessage = "No se recibió respuesta válida del servidor";
+    //             recoveryMessageClass = "alert-danger";
+    //             elementosTabla.Clear();
+    //         }
+    //     }
+    //     catch (Exception ex)
+    //     {
+    //         errorMessage = $"Error al cargar elementos: {ex.Message}";
+    //         elementosTabla.Clear();
+    //     }
+    //     finally
+    //     {
+    //         isLoading = false;
+    //         StateHasChanged();
+    //     }
+    // }
+    private async Task OnCatalogSelected(ChangeEventArgs e)
+    {
+        seleccionadoC = e.Value?.ToString();
+        selectedCatalogText = elementos.FirstOrDefault(x => x.Valor == seleccionadoC)?.Texto ?? string.Empty;
+
+        if (!string.IsNullOrEmpty(seleccionadoC))
+        {
+            await CargarElementosCatalogo();
+        }
+        else
+        {
+            elementosTabla.Clear();
+        }
+    }
+    private async Task CargarElementosCatalogo()
+    {
+        if (string.IsNullOrEmpty(seleccionadoC)) return;
+
+        try
+        {
+            isLoading = true;
+            StateHasChanged();
+
+            var client = new GetClient
+                {
+                    R = new cResul
+                    {
+                        metodos = "obtGetClient",
+                        Token = AppState.SysToken,
+                        modulo = "Usuarios"
+                    }
+                }.GetClientConfigured();
+
+            var response = await client.PostAsJsonAsync("WebServices/CatalogosA", new
+            {
+                Catalogo = seleccionadoC,
+                R = new cResul
+                    {
+                        modulo = AppState.CurrentPage,
+                        metodos = "Cargar",
+                        Token = AppState.SysToken,
+                    }
+            });
+
+            elementosTabla = response.IsSuccessStatusCode
+                ? await response.Content.ReadFromJsonAsync<List<cElemento>>()
+                : new List<cElemento>();
+        }
+        catch
+        {
+            elementosTabla = new List<cElemento>();
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+    private async Task GuardarElementosCatalogo()
+    {
+        if (string.IsNullOrEmpty(seleccionadoC)) return;
+
+        try
+        {
+            isLoading = true;
+            StateHasChanged();
+
+            var client = new GetClient
+                {
+                    R = new cResul
+                    {
+                        metodos = "obtGetClient",
+                        Token = AppState.SysToken,
+                        modulo = "Usuarios"
+                    }
+                }.GetClientConfigured();
+
+            var response = await client.PostAsJsonAsync("WebServices/CatalogosA", new
+            {
+                Id_Catalogo = itemSeleccionado2.Id_Catalogo,
+                IdOrigen = itemSeleccionado2.IdOrigen,
+                Orden = itemSeleccionado2.Orden,
+                Catalogo = itemSeleccionado2.Catalogo,
+                Valor = itemSeleccionado2.Valor,
+                Descripcion = itemSeleccionado2.Descripcion,
+                ValorDefault = itemSeleccionado2.ValorDefault,
+                R = new cResul
+                    {
+                        modulo = AppState.CurrentPage,
+                        metodos = "Guardar",
+                        Token = AppState.SysToken,
+                    }
+            });
+
+            if (response.IsSuccessStatusCode)
+            {
+                SetTemporaryMessage("Catálogo guardado exitosamente", "alert-success");
+                await CargarElementosCatalogo();
+                await CargarCatalogosIniciales();
+                hasEditar = false;
+            }
+            else
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                SetTemporaryMessage($"Error al guardar: {response.StatusCode} - {errorContent}", "alert-danger");
+            }
+
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al guardar catálogo: {ex.Message}");
+            SetTemporaryMessage("Error al conectar con el servidor", "alert-danger");
+        }
+        finally
+        {
+            isLoading = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+    private async Task CrearElementosCatalogo()
+    {
+        if (string.IsNullOrEmpty(seleccionadoC)) return;
+
+        try
+        {
+            isLoading = true;
+            StateHasChanged();
+
+            var client = new GetClient
+                {
+                    R = new cResul
+                    {
+                        metodos = "obtGetClient",
+                        Token = AppState.SysToken,
+                        modulo = "Usuarios"
+                    }
+                }.GetClientConfigured();
+
+            int valorDefault = 0;
+            if(itemSeleccionado2.ValorDefault == null)
+            {
+                valorDefault = 0;
+            }
+            else
+            {
+                valorDefault = 1;
+            }
+
+            var response = await client.PostAsJsonAsync("WebServices/CatalogosA", new
+            {
+                Id_Catalogo = 0,
+                IdOrigen = itemSeleccionado2.IdOrigen,
+                Orden = itemSeleccionado2.Orden,
+                Catalogo = itemSeleccionado2.Catalogo,
+                Valor = itemSeleccionado2.Valor,
+                Descripcion = itemSeleccionado2.Descripcion,
+                ValorDefault = valorDefault,
+                R = new cResul
+                    {
+                        modulo = AppState.CurrentPage,
+                        metodos = "Guardar",
+                        Token = AppState.SysToken,
+                    }
+            });
+
+            if (response.IsSuccessStatusCode)
+            {
+                SetTemporaryMessage("Catálogo creado exitosamente", "alert-success");
+                await CargarElementosCatalogo();
+                hasEditar = false;
+            }
+            else
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                SetTemporaryMessage($"Error al crear: {response.StatusCode} - {errorContent}", "alert-danger");
+            }
+
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al crear catálogo: {ex.Message}");
+            SetTemporaryMessage("Error al conectar con el servidor", "alert-danger");
+        }
+        finally
+        {
+            isLoading = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private async Task Recargar()
+    {
+        await CargarCatalogosIniciales();
+    }
+
+    private async void EditarItem(string valor)
+    {
+        try
+        {
+            itemSeleccionado = elementosTabla.FirstOrDefault(x => x.Valor == valor);
+
+            int.TryParse(itemSeleccionado.Valor, out int idValue);
+            var client = new GetClient
+                {
+                    R = new cResul
+                    {
+                        metodos = "obtGetClient",
+                        Token = AppState.SysToken,
+                        modulo = "Usuarios"
+                    }
+                }.GetClientConfigured();
+
+            var response = await client.PostAsJsonAsync("WebServices/DatosCatA", new
+            {
+                id = idValue,
+                R = new cResul
+                    {
+                        modulo = AppState.CurrentPage,
+                        metodos = "Cargar2",
+                        Token = AppState.SysToken,
+                    }
+            });
+
+            elementosCatalogo = response.IsSuccessStatusCode
+                ? await response.Content.ReadFromJsonAsync<List<tblCatalogo>>()
+                : new List<tblCatalogo>();
+
+
+            itemSeleccionado2 =new  tblCatalogo
+                {
+                    Id_Catalogo = elementosCatalogo[0].Id_Catalogo,
+                    IdOrigen = elementosCatalogo[0].IdOrigen,
+                    Orden = elementosCatalogo[0].Orden,
+                    Catalogo = elementosCatalogo[0].Catalogo,
+                    Valor = elementosCatalogo[0].Valor,
+                    Descripcion = elementosCatalogo[0].Descripcion,
+                    ValorDefault = elementosCatalogo[0].ValorDefault,
+                };
+
+
+
+            hasEditar = true;
+            await InvokeAsync(StateHasChanged); // Cambio clave aquí - usar await InvokeAsync
+        }
+        catch (Exception ex)
+        {
+            SetTemporaryMessage("Error al cargar el item para editar", "alert-danger");
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+    private async void CrearElemento()
+    {
+
+        itemSeleccionado2.Id_Catalogo = 0;
+        itemSeleccionado2.IdOrigen = 0;
+        itemSeleccionado2.Orden=0;
+        itemSeleccionado2.Catalogo=string.Empty;
+        itemSeleccionado2.Valor=string.Empty;
+        itemSeleccionado2.Descripcion=string.Empty;
+        itemSeleccionado2.ValorDefault=0;
+
+        hasEditar = true;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    
+
+    private async void CancelarEdicion()
+    {
+        hasEditar = false;
+        itemSeleccionado = null;
+        await InvokeAsync(StateHasChanged); // Cambio clave aquí
+    }
+}

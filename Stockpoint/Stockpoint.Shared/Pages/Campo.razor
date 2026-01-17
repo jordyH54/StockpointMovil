@@ -1,0 +1,14 @@
+﻿@page "/campo"
+@inject Stockpoint.Shared.Models.GetClient ApiClient
+@inject Stockpoint.Shared.Services.AppStateService AppState
+@using Stockpoint.Shared.Models
+@using System.Timers
+@* @implements IDisposable *@
+@code {
+    protected override void OnInitialized()
+    {
+        
+        AppState.CurrentPage = "Campo"; // Actualiza el nombre en el layout
+    }
+}
+<h1>Campo</h1>

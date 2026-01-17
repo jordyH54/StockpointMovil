@@ -1,0 +1,96 @@
+﻿@using Stockpoint.Shared.Services
+@inject CatalogService CatalogService
+
+<select class="form-select @Class"
+        @attributes="AdditionalAttributes"
+        @bind="SelectedValueInternal"
+        disabled="@IsLoading">
+
+    @if (IsLoading)
+    {
+        <option value="">Cargando @CatalogName...</option>
+    }
+    else if (!Items.Any())
+    {
+        <option value="">@EmptyMessage</option>
+    }
+    else
+    {
+        <option value="">@DefaultPrompt</option>
+        @foreach (var item in Items)
+        {
+            <option value="@item.Valor">@item.Texto</option>
+        }
+    }
+</select>
+
+@code {
+    private List<CatalogService.CatalogItem> Items = new();
+    private bool IsLoading = true;
+    private string _selectedValue;
+
+    [Parameter] public string Class { get; set; } = "";
+
+    [Parameter]
+    public string SelectedValue
+    {
+        get => _selectedValue;
+        set
+        {
+            if (_selectedValue != value)
+            {
+                _selectedValue = value;
+                SelectedValueChanged.InvokeAsync(value.ToString());
+            }
+        }
+    }
+
+    [Parameter] public EventCallback<string> SelectedValueChanged { get; set; }
+
+    [Parameter] public string DefaultPrompt { get; set; } = "-- Seleccione --";
+    [Parameter] public string EmptyMessage { get; set; } = "Sin opciones disponibles";
+    [Parameter(CaptureUnmatchedValues = true)]
+    public Dictionary<string, object> AdditionalAttributes { get; set; } = new();
+
+    private string SelectedValueInternal
+    {
+        get => SelectedValue;
+        set => SelectedValue = value;
+    }
+
+    private string CatalogName => AdditionalAttributes.GetValueOrDefault("catalogo")?.ToString() ?? "";
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (AdditionalAttributes.ContainsKey("catalogo"))
+        {
+            IsLoading = true;
+            Items = await CatalogService.GetCatalogAsync(CatalogName);
+            IsLoading = false;
+        }
+    }
+
+    public async Task SetSelectedValue(string value)
+    {
+        SelectedValue =value;
+        await SelectedValueChanged.InvokeAsync(value);
+        StateHasChanged();
+    }
+    public async Task ReloadCatalogAsync()
+    {
+        if (AdditionalAttributes.ContainsKey("catalogo"))
+        {
+            CatalogService.ClearCache(CatalogName);
+            IsLoading = true;
+            Items = await CatalogService.GetCatalogAsync(CatalogName);
+            IsLoading = false;
+            StateHasChanged();
+        }
+    }
+    public async Task ResetSelection()
+    {
+        SelectedValue = string.Empty;
+        await SelectedValueChanged.InvokeAsync(string.Empty);
+        StateHasChanged();
+    }
+}

@@ -1,0 +1,1592 @@
+﻿@page "/bitacora"
+@inject Stockpoint.Shared.Models.GetClient ApiClient
+@inject Stockpoint.Shared.Services.AppStateService AppState
+@inject Stockpoint.Shared.Services.CatalogService CatalogService
+@using Stockpoint.Shared.Models
+@using Stockpoint.Shared.Services
+@using System.Text.Json
+@using System.Timers
+@inject IJSRuntime JSRuntime
+@implements IDisposable
+
+<style>
+    
+    
+    /* Contenedor principal con grid exacto */
+    .six-cards-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        grid-auto-rows: auto; /* esto es clave */
+        gap: 6px;
+        padding: 6px;
+        box-sizing: border-box;
+        align-items: start;
+    }
+
+
+    /* Tarjetas que se adaptan al espacio */
+    .grid-card {
+        display: flex;
+        flex-direction: column;
+        border-radius: 6px;
+        background: white;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        border: 1px solid #e0e0e0;
+        overflow: hidden;
+    }
+
+    /* Cabecera compacta */
+    .grid-card-header {
+        padding: 5px 6px;
+        background: #f8f9fa;
+        border-bottom: 1px solid #dee2e6;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        min-height: 30px;
+    }
+
+    /* Cuerpo flexible */
+    .grid-card-body {
+        padding: 8px;
+        /* flex: 1; */
+        display: flex;
+        flex-direction: column;
+    }
+
+    /* Textos optimizados */
+    .grid-text-small {
+        font-size: 0.68rem;
+        line-height: 1.2;
+        margin: 0 0 4px 0;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    /* Badges ultra compactos */
+    .grid-badge {
+        font-size: 0.6rem;
+        padding: 2px 5px;
+        border-radius: 4px;
+        max-width: 70%;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    /* Botones mini */
+    .grid-btn {
+        padding: 3px 6px;
+        font-size: 0.65rem;
+        min-height: 24px;
+    }
+
+    /* Estilos para los detalles expandidos - AHORA MANEJADO POR JS */
+    .expanded-details {
+        padding: 8px;
+        margin-top: 4px;
+        border-top: 1px solid #eee;
+        background-color: #f8f9fa;
+    }
+
+
+    /* .expanded-details.show {
+        
+        max-height: 500px;
+        padding: 8px;
+        margin-top: 6px;
+        border-top: 1px solid #eee;
+    } */
+
+    .expanded-details-item {
+        margin-bottom: 4px;
+        font-size: 0.65rem;
+    }
+
+    .expanded-details-label {
+        font-weight: bold;
+        color: #555;
+    }
+
+    /* Estilo para el botón cuando está activo */
+    .btn-secondary {
+        background-color: #6c757d;
+        border-color: #6c757d;
+    }
+</style>
+<PageTitle>Roles del Sistema</PageTitle>
+
+<div class="container">
+    @if (hasError)
+    {
+        <div class="alert alert-danger">
+            <h4>Error</h4>
+            <p>@errorMessage</p>
+            <button class="btn btn-secondary" @onclick="Recargar">Reintentar</button>
+        </div>
+    }
+    else if (isLoading)
+    {
+        <div class="loading-container">
+            <div class="spinner-container">
+                <div class="spinner"></div>
+            </div>
+            <p class="loading-text">Cargando Bitacora...</p>
+        </div>
+    }
+    else
+    {
+        @if (!string.IsNullOrEmpty(recoveryMessage))
+        {
+            <div class="alert @recoveryMessageClass">@recoveryMessage</div>
+        }
+
+        <div class="card-body mb-1">
+            <!-- Contenedor de búsqueda (visible cuando los filtros están ocultos) -->
+            
+
+            <!-- Botón para mostrar/ocultar filtros -->
+            <div class="d-flex justify-content-between mb-0">
+                <div class="d-flex align-items-center gap-2">
+                    <button class="btn btn-my-primary" @onclick="ToggleFilters">
+                        <i class="fas fa-filter"></i> Filtros
+                    </button>
+
+                    <div class="search-container" style="@(showFilters ? "display: none;" : "display: block;")">
+                        <div class="input-group">
+                            <input type="text"
+                                   class="form-control"
+                                   placeholder="Buscar..."
+                                   @bind="TextoBusqueda"
+                                   @bind:event="onchange" />
+                            <button class=" btn-my-primary"
+                                    @onclick="AplicarFiltro"
+                                    disabled="@isLoading">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-search" viewBox="0 0 16 16">
+                                    <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                @if (showFilters)
+                {
+                    <button class="btn btn-danger" @onclick="LimpiarFiltros">
+                        <i class="fas fa-times"></i> Limpiar Filtros
+                    </button>
+                }
+            </div>
+
+            <!-- Contenedor de filtros desplegable -->
+            <div class="filters-container" style="@(showFilters ? "display: block;" : "display: none;")">
+                <div class="row g-3" style="margin-top:4%">
+                    <!-- Filtros existentes... -->
+                    <div class="col-12 col-sm-6 col-md-4 col-lg-3">
+                        <label class="form-label">Pantalla</label>
+                        <SmartSelect Class="form-select"
+                        catalogo="Pantallas para bitacora"
+                        @bind-SelectedValue="selectedPantalla"
+                        @ref="pantallaSelect" />
+                    </div>
+
+                    <div class="col-12 col-sm-6 col-md-4 col-lg-3">
+                        <label class="form-label">Métodos</label>
+                        <SmartSelect Class="form-select"
+                        catalogo="Metodos para bitacora"
+                        @bind-SelectedValue="seleccionadoM"
+                        @ref="metodosSelect" />
+                    </div>
+
+                    <div class="col-12 col-sm-6 col-md-4 col-lg-3">
+                        <label class="form-label">Usuarios</label>
+                        <SmartSelect Class="form-select"
+                        catalogo="Usuarios para bitacora"
+                        @bind-SelectedValue="selectedUsuario"
+                        @ref="usuarioSelect" />
+                    </div>
+
+                    <div class="col-12 col-sm-6 col-md-4 col-lg-3">
+                        <label class="form-label">Estatus</label>
+                        <SmartSelect Class="form-select"
+                        catalogo="Estatus para bitacora"
+                        @bind-SelectedValue="selectedEstatus"
+                        @ref="estatusSelect" />
+                    </div>
+
+                    <div class="col-12 col-sm-6 col-md-4 col-lg-3">
+                        <label class="form-label">Fecha Inicial</label>
+                        <input type="date"
+                        class="form-control"
+                        @bind="fechaInicio"
+                        @bind:format="yyyy-MM-dd" />
+                    </div>
+
+                    <div class="col-12 col-sm-6 col-md-4 col-lg-3">
+                        <label class="form-label">Fecha Final</label>
+                        <input type="date"
+                        class="form-control"
+                        @bind="fechaFin"
+                        @bind:format="yyyy-MM-dd" />
+                    </div>
+
+                    <div class="col-12 text-end mt-2">
+                        <button class="btn btn-primary" @onclick="ApplyFilters">
+                            <i class="fas fa-filter"></i> Aplicar Filtros
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Resto del código de visualización de tarjetas... -->
+        @if (elementosTabla.Any())
+        {
+            <div class="d-lg-none">
+                @if (elementosFiltrados.Count == 0)
+                {
+                    <div class="alert alert-info">No se encontraron resultados</div>
+                }
+                else
+                {
+                    @if (isSearching)
+                    {
+                        <div class="text-center my-2">
+                            <span class="spinner-border spinner-border-sm" role="status"></span>
+                            <span class="ms-2">Buscando...</span>
+                        </div>
+                    }
+                    else
+                    {
+                       <div class="six-cards-grid">
+                            @foreach (var item in elementosFiltrados)
+                            {
+                                <div class="grid-card" id="card-@item.idResultado">
+                                    <div class="grid-card-header">
+                                        <span class="grid-text-small">ID: @item.idResultado</span>
+                                        <span class="grid-badge @GetStatusBadgeClass(item.Estatus)">
+                                            @item.Estatus
+                                        </span>
+                                    </div>
+
+                                    <div class="grid-card-body">
+                                        <span class="grid-text-small"><strong>Módulo:</strong> @item.modulo</span>
+                                        <span class="grid-text-small"><strong>Usuario:</strong> @item.Usuario</span>
+                                        <span class="grid-text-small"><strong>Fecha:</strong> @item.fecha.ToString("dd/MM/yyyy HH:mm")</span>
+
+                                        @if (IsExpanded(item.idResultado))
+                                        {
+                                            <div class="expanded-details">
+                                                <div class="expanded-details-item">
+                                                    <span class="expanded-details-label">Método:</span>
+                                                    <span>@item.metodos</span>
+                                                </div>
+                                                <div class="expanded-details-item">
+                                                    <span class="expanded-details-label">Mensaje:</span>
+                                                    <span>@item.mensaje</span>
+                                                </div>
+                                                <div class="expanded-details-item">
+                                                    <span class="expanded-details-label">Mensaje Sistema:</span>
+                                                    <span>@item.mensajeDeSistema</span>
+                                                </div>
+                                            </div>
+                                        }
+                                    </div>
+
+                                    <div class="grid-card-header" style="justify-content: flex-end;">
+                                        <button class="grid-btn toggle-btn"
+                                                @onclick="() => ToggleCard(item.idResultado)">
+                                            @(IsExpanded(item.idResultado) ? "▲" : "▼")
+                                        </button>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+
+
+
+                        @if (totalRegistros > registrosPorPagina)
+                        {
+                            <div class="d-flex justify-content-center align-items-center mt-1 gap-3">
+                                <button class="btn btn-my-primary"
+                                        disabled="@(paginaActual == 1 || isLoading)"
+                                        @onclick="PaginaAnterior">
+                                    «
+                                </button>
+
+                                <span>
+                                    Página <strong>@paginaActual</strong> de <strong>@TotalPaginas</strong>
+                                </span>
+
+                                <button class="btn btn-my-primary"
+                                        disabled="@(paginaActual == TotalPaginas || isLoading)"
+                                        @onclick="PaginaSiguiente">
+                                    »
+                                </button>
+                            </div>
+                        }
+
+
+                    }
+                }
+            </div>
+        }
+        else if (!string.IsNullOrEmpty(seleccionadoM))
+        {
+            <div class="alert alert-danger mt-3">
+                No tienes permisos
+            </div>
+        }
+    }
+</div>
+@code {
+    #region Variables de estado UI
+    private int? expandedCardId = null;
+    private int paginaActual = 1;
+    private const int registrosPorPagina = 20; // Ajusta este valor según necesites
+    private int totalRegistros = 0;
+    private bool hayMasRegistros = false;
+    private bool isLoading = true;
+    private int TotalPaginas => (int)Math.Ceiling((double)totalRegistros / registrosPorPagina);
+    private Timer messageTimer;
+    private int messageTimeout = 5000;
+    private bool showFilters = false;
+    private string recoveryMessage = string.Empty;
+    private string recoveryMessageClass = "alert-info";
+    private bool hasError = false;
+    private string errorMessage = string.Empty;
+    #endregion
+
+    #region Colecciones de datos
+    private List<vwResultado> elementosFiltrados = new();
+    private List<vwResultado> elementosTabla = new();
+    #endregion
+
+    #region Referencias a componentes
+    private SmartSelect metodosSelect, pantallaSelect, usuarioSelect, estatusSelect;
+    #endregion
+
+    #region Filtros y búsqueda
+    private DateTime _fechaInicio = DateTime.Today.AddDays(-7);
+    private DateTime _fechaFin = DateTime.Today;
+    private bool isSearching = false;
+    private SemaphoreSlim searchSemaphore = new SemaphoreSlim(1, 1);
+    private CancellationTokenSource searchTokenSource = new();
+
+    private class FiltrosState
+    {
+        public string Pantalla { get; set; }
+        public string Usuario { get; set; }
+        public string Metodo { get; set; }
+        public string Estatus { get; set; }
+        public string TextoBusqueda { get; set; }
+    }
+
+    private FiltrosState filtros = new FiltrosState();
+
+    [Parameter]
+    public string selectedPantalla
+    {
+        get => filtros.Pantalla;
+        set
+        {
+            if (filtros.Pantalla != value)
+            {
+                filtros.Pantalla = value;
+                DebounceSearch();
+            }
+        }
+    }
+
+    [Parameter]
+    public string selectedEstatus
+    {
+        get => filtros.Estatus;
+        set
+        {
+            if (filtros.Estatus != value)
+            {
+                filtros.Estatus = value;
+                DebounceSearch();
+            }
+        }
+    }
+
+    [Parameter]
+    public string selectedUsuario
+    {
+        get => filtros.Usuario;
+        set
+        {
+            if (filtros.Usuario != value)
+            {
+                filtros.Usuario = value;
+                DebounceSearch();
+            }
+        }
+    }
+
+    [Parameter]
+    public string seleccionadoM
+    {
+        get => filtros.Metodo;
+        set
+        {
+            if (filtros.Metodo != value)
+            {
+                filtros.Metodo = value;
+                DebounceSearch();
+            }
+        }
+    }
+
+    public DateTime fechaInicio
+    {
+        get => _fechaInicio;
+        set
+        {
+            if (_fechaInicio != value)
+            {
+                _fechaInicio = value;
+                DebounceSearch();
+            }
+        }
+    }
+
+    public DateTime fechaFin
+    {
+        get => _fechaFin;
+        set
+        {
+            if (_fechaFin != value)
+            {
+                _fechaFin = value;
+                DebounceSearch();
+            }
+        }
+    }
+
+    public string TextoBusqueda
+    {
+        get => filtros.TextoBusqueda;
+        set
+        {
+            filtros.TextoBusqueda = value;
+            if (filtros.TextoBusqueda != value)
+            {
+                filtros.TextoBusqueda = value;
+                DebounceSearch();
+            }
+        }
+    }
+    #endregion
+
+    #region Métodos de expansión de cards
+    private void ToggleCard(int cardId)
+    {
+        expandedCardId = expandedCardId == cardId ? null : cardId;
+    }
+
+    private bool IsExpanded(int cardId) => expandedCardId == cardId;
+    #endregion
+
+    #region Métodos de paginación
+    private async Task IrAPagina(int nuevaPagina)
+    {
+        if (nuevaPagina < 1 || nuevaPagina > TotalPaginas) return;
+
+        paginaActual = nuevaPagina;
+        await CargarElementosCatalogo(false);
+    }
+
+    private async Task PaginaAnterior() => await IrAPagina(paginaActual - 1);
+    private async Task PaginaSiguiente() => await IrAPagina(paginaActual + 1);
+    #endregion
+
+    #region Métodos de filtrado y búsqueda
+    private async Task LimpiarFiltros()
+    {
+        showFilters = !showFilters;
+        selectedPantalla = null;
+        selectedEstatus = null;
+        selectedUsuario = null;
+        seleccionadoM = null;
+        TextoBusqueda = string.Empty;
+        fechaInicio = DateTime.Today.AddDays(-7);
+        fechaFin = DateTime.Today;
+
+        if (pantallaSelect != null) await pantallaSelect.ResetSelection();
+        if (metodosSelect != null) await metodosSelect.ResetSelection();
+        if (usuarioSelect != null) await usuarioSelect.ResetSelection();
+        if (estatusSelect != null) await estatusSelect.ResetSelection();
+        await AplicarFiltro();
+
+        await CargarElementosCatalogo();
+    }
+
+    private async Task DebounceSearch()
+    {
+        searchTokenSource.Cancel();
+        searchTokenSource = new CancellationTokenSource();
+
+        try
+        {
+            await Task.Delay(300, searchTokenSource.Token);
+            await Buscar();
+        }
+        catch (TaskCanceledException)
+        {
+            // Operación cancelada, no hacer nada
+        }
+    }
+
+    private async Task AplicarFiltro()
+    {
+        await searchSemaphore.WaitAsync();
+        try
+        {
+            searchTokenSource.Cancel();
+            searchTokenSource = new CancellationTokenSource();
+            var token2 = searchTokenSource.Token;
+
+            await Task.Delay(300 /* token2 */);
+
+            bool hayFiltrosActivos = !string.IsNullOrWhiteSpace(TextoBusqueda) ||
+                                    !string.IsNullOrEmpty(selectedPantalla) ||
+                                    !string.IsNullOrEmpty(selectedUsuario) ||
+                                    !string.IsNullOrEmpty(seleccionadoM) ||
+                                    !string.IsNullOrEmpty(selectedEstatus) ||
+                                    fechaInicio != DateTime.Today.AddDays(-7) ||
+                                    fechaFin != DateTime.Today;
+
+            if (!hayFiltrosActivos)
+            {
+                elementosFiltrados = elementosTabla;
+                await InvokeAsync(StateHasChanged);
+                return;
+            }
+
+            await Buscar();
+        }
+        catch (TaskCanceledException)
+        {
+            // Búsqueda cancelada, no hacer nada
+        }
+        finally
+        {
+            searchSemaphore.Release();
+        }
+    }
+
+    private async Task ApplyFilters()
+    {
+        paginaActual = 1;
+        showFilters = !showFilters;
+        await Recargar();
+
+        await AplicarFiltro();
+    }
+
+    private async Task Buscar()
+    {
+        if (elementosTabla == null || !elementosTabla.Any())
+        {
+            elementosFiltrados = new List<vwResultado>();
+            return;
+        }
+
+        try
+        {
+            isSearching = true;
+            await Task.Yield();
+
+            var resultadosFiltrados = elementosTabla.AsEnumerable();
+
+            resultadosFiltrados = resultadosFiltrados.Where(x =>
+                x.fecha.Date >= fechaInicio.Date &&
+                x.fecha.Date <= fechaFin.Date);
+
+            if (!string.IsNullOrEmpty(selectedPantalla))
+            {
+                resultadosFiltrados = resultadosFiltrados.Where(x =>
+                    x.modulo?.Contains(selectedPantalla, StringComparison.OrdinalIgnoreCase) == true);
+            }
+
+            if (!string.IsNullOrEmpty(selectedUsuario))
+            {
+                resultadosFiltrados = resultadosFiltrados.Where(x =>
+                    x.Usuario?.Contains(selectedUsuario, StringComparison.OrdinalIgnoreCase) == true);
+            }
+
+            if (!string.IsNullOrEmpty(seleccionadoM))
+            {
+                resultadosFiltrados = resultadosFiltrados.Where(x =>
+                    x.metodos?.Contains(seleccionadoM, StringComparison.OrdinalIgnoreCase) == true);
+            }
+
+            if (!string.IsNullOrEmpty(selectedEstatus))
+            {
+                resultadosFiltrados = resultadosFiltrados.Where(x =>
+                    x.Estatus?.Contains(selectedEstatus, StringComparison.OrdinalIgnoreCase) == true);
+            }
+
+            if (!string.IsNullOrWhiteSpace(TextoBusqueda))
+            {
+                var busqueda = TextoBusqueda.Trim().ToLower();
+                resultadosFiltrados = resultadosFiltrados
+                    .AsParallel()
+                    .Select(item => new
+                    {
+                        Item = item,
+                        Score = CalculateSearchScore(item, busqueda)
+                    })
+                    .Where(x => x.Score > 0)
+                    .OrderByDescending(x => x.Score)
+                    .Select(x => x.Item);
+            }
+
+            elementosFiltrados = resultadosFiltrados.ToList();
+        }
+        finally
+        {
+            isSearching = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private int CalculateSearchScore(vwResultado item, string searchTerm)
+    {
+        if (item.idResultado.ToString().Equals(searchTerm, StringComparison.OrdinalIgnoreCase))
+            return 100;
+
+        int score = 0;
+
+        if (!string.IsNullOrEmpty(item.modulo) && item.modulo.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
+            score += 40;
+
+        if (!string.IsNullOrEmpty(item.Usuario) && item.Usuario.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
+            score += 30;
+
+        if (!string.IsNullOrEmpty(item.metodos) && item.metodos.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
+            score += 20;
+
+        if (!string.IsNullOrEmpty(item.mensaje) && item.mensaje.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
+            score += 10;
+        if (!string.IsNullOrEmpty(item.mensajeDeSistema) && item.mensajeDeSistema.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
+            score += 10;
+        if (!string.IsNullOrEmpty(item.Estatus) && item.Estatus.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
+            score += 10;
+        if (item.fecha.ToString("dd/MM/yyyy").Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
+            score += 10;
+
+        return score;
+    }
+
+    private bool ContainsAny(string source, string search)
+    {
+        return !string.IsNullOrEmpty(source) && source.ToLower().Contains(search);
+    }
+    #endregion
+
+    #region Métodos de carga de datos
+    private async Task CargarElementosCatalogo(bool cargarMas = false)
+    {
+        try
+        {
+            if (!cargarMas)
+            {
+                elementosTabla = new List<vwResultado>();
+            }
+            isLoading = true;
+            StateHasChanged();
+
+            var jsonOptions = new JsonSerializerOptions
+            {
+                Converters = { new JsonDotNetDateConverter() },
+                PropertyNameCaseInsensitive = true
+            };
+
+            var requestData = new
+            {
+                Movil = int.Parse("1"),
+                FechaInicial = fechaInicio.ToString("yyyy/MM/dd"),
+                FechaFinal = fechaFin.AddDays(1).AddSeconds(-1).ToString("yyyy/MM/dd"),
+                modulo = filtros.Pantalla,
+                Usuario = filtros.Usuario,
+                metodos = filtros.Metodo,
+                Estatus = filtros.Estatus,
+                Pagina = paginaActual,
+
+                R = new cResul
+                {
+                    modulo = "Bitacora",
+                    metodos = "Cargar",
+                    Token = AppState.SysToken,
+                }
+            };
+
+            using var client = new GetClient
+            {
+                R = new cResul
+                {
+                    metodos = "obtGetClient",
+                    Token = AppState.SysToken,
+                    modulo = AppState.CurrentPage
+                }
+            }.GetClientConfigured();
+
+            var response = await client.PostAsJsonAsync("WebServices/ResultadosNA", requestData, jsonOptions);
+
+            if (response.IsSuccessStatusCode)
+            {
+                string rawJsonResponse = await response.Content.ReadAsStringAsync();
+                var responseData = System.Text.Json.JsonSerializer.Deserialize<ServerApiResponse>(rawJsonResponse, jsonOptions);
+
+                if (cargarMas)
+                {
+                    elementosTabla.AddRange(responseData.Data);
+                }
+                else
+                {
+                    elementosTabla = new List<vwResultado>(responseData.Data);
+                }
+
+                totalRegistros = responseData.Total;
+                hayMasRegistros = (paginaActual * registrosPorPagina) < totalRegistros;
+
+                await Buscar();
+            }
+            else
+            {
+                await OnInitializedAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            SetTemporaryMessage("Error al cargar datos " + ex, "alert-danger");
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task CargarMasRegistros()
+    {
+        if (hayMasRegistros && !isLoading)
+        {
+            paginaActual++;
+            await CargarElementosCatalogo(true);
+        }
+    }
+
+    private async Task CargarCatalogosIniciales()
+    {
+        try
+        {
+            isLoading = true;
+            hasError = false;
+            StateHasChanged();
+
+            await Task.Delay(100);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error al cargar catálogos: {ex.Message}";
+            hasError = true;
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task OnCatalogSelected()
+    {
+        await CargarElementosCatalogo();
+    }
+
+    private async Task Recargar()
+    {
+        if (metodosSelect != null)
+        {
+            await metodosSelect.ReloadCatalogAsync();
+        }
+        await CargarElementosCatalogo();
+    }
+    #endregion
+
+    #region Métodos de UI y utilidades
+    private string GetStatusBadgeClass(string status)
+    {
+        return status switch
+        {
+            "Activo" => "bg-success",
+            "Es correcto" => "bg-success",
+            "Error" => "bg-danger",
+            "No activo" => "bg-danger",
+            "Pendiente" => "bg-warning",
+            "Suspendido" => "bg-warning",
+            "Actualizacion de Pantalla denegada" => "bg-danger",
+            "Actualizacion de Pantalla" => "bg-success",
+            "Login denegado" => "bg-danger",
+            "Login aprobado" => "bg-success",
+            "Falla por sistema" => "bg-danger",
+            "Publico" => "bg-secondary",
+            "Web master" => "bg-secondary",
+            _ => "bg-secondary"
+        };
+    }
+
+    private void SetTemporaryMessage(string message, string messageClass)
+    {
+        recoveryMessage = message;
+        recoveryMessageClass = messageClass;
+        messageTimer.Stop();
+        messageTimer.Start();
+        StateHasChanged();
+    }
+
+    private async void ClearMessage()
+    {
+        await InvokeAsync(() =>
+        {
+            recoveryMessage = string.Empty;
+            recoveryMessageClass = string.Empty;
+            StateHasChanged();
+        });
+    }
+
+    private void ToggleFilters()
+    {
+        showFilters = !showFilters;
+    }
+
+    private void EditarItem(string valor)
+    {
+        Console.WriteLine($"Editando item con valor: {valor}");
+    }
+    #endregion
+
+    #region Métodos del ciclo de vida
+    protected override async Task OnInitializedAsync()
+    {
+        messageTimer = new Timer(messageTimeout);
+        messageTimer.Elapsed += (sender, e) => ClearMessage();
+        messageTimer.AutoReset = false;
+
+        fechaInicio = DateTime.Today.AddDays(-7);
+        fechaFin = DateTime.Today;
+
+        AppState.CurrentPage = "Bitacora";
+        await CargarCatalogosIniciales();
+        await CargarElementosCatalogo();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await CargarCatalogosIniciales();
+        }
+    }
+
+    public void Dispose()
+    {
+        // Limpieza si es necesaria
+    }
+    #endregion
+}
+@* 
+@code {
+    private int? expandedCardId = null;
+
+    private void ToggleCard(int cardId)
+    {
+        expandedCardId = expandedCardId == cardId ? null : cardId;
+    }
+
+    private bool IsExpanded(int cardId) => expandedCardId == cardId;
+
+
+
+    // Función para alternar (abrir/cerrar) un card específico
+
+    // private async Task ToggleCardDetails(int cardId)
+    // {
+    //     try
+    //     {
+
+    //         await JSRuntime.InvokeVoidAsync("toggleCardDetails", cardId);
+
+    //     }
+    //     catch (Exception ex)
+    //     {
+    //         Console.WriteLine($"Error JS: {ex.Message}");
+    //         // Opcional: Mostrar alerta nativa
+
+    //     }
+
+
+
+    // }
+    // Función para verificar si un card está expandido
+
+
+
+    private int paginaActual = 1;
+    private const int registrosPorPagina = 20; // Ajusta este valor según necesites
+    private int totalRegistros = 0;
+    private bool hayMasRegistros = false;
+    private bool isLoading = true;
+    private int TotalPaginas => (int)Math.Ceiling((double)totalRegistros / registrosPorPagina);
+
+
+
+    private async Task IrAPagina(int nuevaPagina)
+    {
+        if (nuevaPagina < 1 || nuevaPagina > TotalPaginas) return;
+
+        paginaActual = nuevaPagina;
+        await CargarElementosCatalogo(false); // o lo que cargue tus datos
+    }
+
+    private async Task PaginaAnterior() => await IrAPagina(paginaActual - 1);
+    private async Task PaginaSiguiente() => await IrAPagina(paginaActual + 1);
+
+    private async Task LimpiarFiltros()
+    {
+        showFilters = !showFilters;
+        selectedPantalla = null;
+        selectedEstatus = null;
+        selectedUsuario = null;
+        seleccionadoM = null;
+        TextoBusqueda = string.Empty;
+        fechaInicio = DateTime.Today.AddDays(-7);
+        fechaFin = DateTime.Today;
+
+        if (pantallaSelect != null) await pantallaSelect.ResetSelection();
+        if (metodosSelect != null) await metodosSelect.ResetSelection();
+        if (usuarioSelect != null) await usuarioSelect.ResetSelection();
+        if (estatusSelect != null) await estatusSelect.ResetSelection();
+        await AplicarFiltro();
+
+        await CargarElementosCatalogo();
+    }
+
+
+    private string GetStatusBadgeClass(string status)
+    {
+        return status switch
+        {
+            "Activo" => "bg-success",
+            "Es correcto" => "bg-success",
+            "Error" => "bg-danger",
+            "No activo" => "bg-danger",
+            "Pendiente" => "bg-warning",
+            "Suspendido" => "bg-warning",
+            "Actualizacion de Pantalla denegada" => "bg-danger",
+            "Actualizacion de Pantalla" => "bg-success",
+            "Login denegado" => "bg-danger",
+            "Login aprobado" => "bg-success",
+            "Falla por sistema" => "bg-danger",
+            "Publico" => "bg-secondary",
+            "Web master" => "bg-secondary",
+
+
+            _ => "bg-secondary"
+        };
+    }
+
+
+
+
+    private Timer messageTimer;
+    private int messageTimeout = 5000;
+
+    // Referencia al componente
+    private SmartSelect metodosSelect, pantallaSelect, usuarioSelect, estatusSelect;
+
+    private DateTime _fechaInicio = DateTime.Today.AddDays(-7);
+    private DateTime _fechaFin = DateTime.Today;
+    private bool showFilters = false;
+
+
+
+    private List<vwResultado> elementosFiltrados = new();
+
+
+    // Estado de la UI
+    private string recoveryMessage = string.Empty;
+    private string recoveryMessageClass = "alert-info";
+
+    private bool hasError = false;
+    private string errorMessage = string.Empty;
+
+
+
+
+
+    private List<vwResultado> elementosTabla = new();
+
+
+
+
+
+    private string _selectedPantalla;
+    private string _selectedEstatus;
+    private string _selectedUsuario;
+    private string _seleccionadoM;
+
+
+
+
+
+
+    // Reemplaza las propiedades individuales por una clase de estado
+    private class FiltrosState
+    {
+        public string Pantalla { get; set; }
+        public string Usuario { get; set; }
+        public string Metodo { get; set; }
+        public string Estatus { get; set; }
+
+        public string TextoBusqueda { get; set; }
+    }
+
+    private FiltrosState filtros = new FiltrosState();
+
+
+    private CancellationTokenSource searchTokenSource = new();
+    private string _textoBusqueda;
+    public string TextoBusqueda
+    {
+        get => filtros.TextoBusqueda;
+        set
+        {
+            filtros.TextoBusqueda = value;
+            if (filtros.TextoBusqueda != value)
+            {
+                filtros.TextoBusqueda = value;
+                DebounceSearch();
+            }  // Se ejecuta solo con @onchange
+        }
+    }
+    // Actualiza las propiedades para usar el estado consolidado
+    [Parameter]
+    public string selectedPantalla
+    {
+        get => filtros.Pantalla;
+        set
+        {
+            if (filtros.Pantalla != value)
+            {
+                filtros.Pantalla = value;
+                DebounceSearch();
+            }
+        }
+    }
+
+    // Repite para las otras propiedades...
+
+
+
+    [Parameter]
+    public string selectedEstatus
+    {
+        get => filtros.Estatus;
+        set
+        {
+            if (filtros.Estatus != value)
+            {
+                filtros.Estatus = value;
+                DebounceSearch();
+            }
+        }
+    }
+
+    [Parameter]
+    public string selectedUsuario
+    {
+        get => filtros.Usuario;
+        set
+        {
+            if (filtros.Usuario != value)
+            {
+                filtros.Usuario= value;
+                DebounceSearch();
+            }
+        }
+    }
+
+    [Parameter]
+    public string seleccionadoM
+    {
+        get => filtros.Metodo;
+        set
+        {
+            if (filtros.Metodo != value)
+            {
+                filtros.Metodo = value;
+                DebounceSearch();
+            }
+        }
+    }
+    public DateTime fechaInicio
+    {
+        get => _fechaInicio;
+        set
+        {
+            if (_fechaInicio != value)
+            {
+                _fechaInicio = value;
+                DebounceSearch(); // O ApplyFilters() si prefieres
+            }
+        }
+    }
+
+    public DateTime fechaFin
+    {
+        get => _fechaFin;
+        set
+        {
+            if (_fechaFin != value)
+            {
+                _fechaFin = value;
+                DebounceSearch(); // O ApplyFilters() si prefieres
+            }
+        }
+    }
+
+
+    private bool isSearching = false;
+
+    private SemaphoreSlim searchSemaphore = new SemaphoreSlim(1, 1);
+
+
+    private async Task DebounceSearch()
+    {
+        searchTokenSource.Cancel();
+        searchTokenSource = new CancellationTokenSource();
+
+        try
+        {
+            await Task.Delay(300, searchTokenSource.Token);
+            await Buscar();
+        }
+        catch (TaskCanceledException)
+        {
+            // Operación cancelada, no hacer nada
+        }
+    }
+
+    // private async Task AplicarFiltro()
+    // {
+    //     if (string.IsNullOrWhiteSpace(TextoBusqueda) &&
+    //         string.IsNullOrEmpty(selectedPantalla) &&
+    //         string.IsNullOrEmpty(selectedUsuario) &&
+    //         string.IsNullOrEmpty(seleccionadoM) &&
+    //         string.IsNullOrEmpty(selectedEstatus))
+    //     {
+    //         // Si no hay ningún filtro activo, mostrar todos los elementos
+    //         elementosFiltrados = elementosTabla;
+    //     }
+    //     else
+    //     {
+    //         await Buscar(); // Aplicar filtros combinados
+    //     }
+    //     StateHasChanged();
+    // }
+    private async Task AplicarFiltro()
+    {
+        // Usar semáforo para evitar múltiples ejecuciones simultáneas
+        await searchSemaphore.WaitAsync();
+        try
+        {
+            // Cancelar búsqueda anterior
+            searchTokenSource.Cancel();
+            searchTokenSource = new CancellationTokenSource();
+            var token2 = searchTokenSource.Token;
+
+            // Pequeño delay para el debounce
+            await Task.Delay(300 /* token2 */);
+
+            // Verificar si hay algún filtro activo
+            bool hayFiltrosActivos = !string.IsNullOrWhiteSpace(TextoBusqueda) ||
+                                    !string.IsNullOrEmpty(selectedPantalla) ||
+                                    !string.IsNullOrEmpty(selectedUsuario) ||
+                                    !string.IsNullOrEmpty(seleccionadoM) ||
+                                    !string.IsNullOrEmpty(selectedEstatus) ||
+                                    fechaInicio != DateTime.Today.AddDays(-7) ||
+                                    fechaFin != DateTime.Today;
+
+            if (!hayFiltrosActivos)
+            {
+                elementosFiltrados = elementosTabla;
+                await InvokeAsync(StateHasChanged);
+                return;
+            }
+
+            // Ejecutar búsqueda
+            
+            await Buscar();
+            
+        }
+        catch (TaskCanceledException)
+        {
+            // Búsqueda cancelada, no hacer nada
+        }
+        finally
+        {
+            searchSemaphore.Release();
+        }
+    }
+    private async Task ApplyFilters()
+    {
+        paginaActual = 1;
+        showFilters = !showFilters;
+        await Recargar();
+        
+        await AplicarFiltro(); // Usar AplicarFiltro en lugar de CargarElementosCatalogo
+    }
+
+
+
+    private async Task Buscar()
+    {
+        if (elementosTabla == null || !elementosTabla.Any())
+        {
+            elementosFiltrados = new List<vwResultado>();
+            return;
+        }
+
+        try
+        {
+            isSearching = true;
+            await Task.Yield(); // Liberar el hilo UI
+
+            var resultadosFiltrados = elementosTabla.AsEnumerable();
+
+            // Filtro por fechas (comparar solo la parte de fecha)
+            resultadosFiltrados = resultadosFiltrados.Where(x =>
+                x.fecha.Date >= fechaInicio.Date &&
+                x.fecha.Date <= fechaFin.Date);
+
+            // Aplicar filtros solo si tienen valor
+            if (!string.IsNullOrEmpty(selectedPantalla))
+            {
+                resultadosFiltrados = resultadosFiltrados.Where(x =>
+                    x.modulo?.Contains(selectedPantalla, StringComparison.OrdinalIgnoreCase) == true);
+            }
+
+            if (!string.IsNullOrEmpty(selectedUsuario))
+            {
+                resultadosFiltrados = resultadosFiltrados.Where(x =>
+                    x.Usuario?.Contains(selectedUsuario, StringComparison.OrdinalIgnoreCase) == true);
+            }
+
+            if (!string.IsNullOrEmpty(seleccionadoM))
+            {
+                resultadosFiltrados = resultadosFiltrados.Where(x =>
+                    x.metodos?.Contains(seleccionadoM, StringComparison.OrdinalIgnoreCase) == true);
+            }
+
+            if (!string.IsNullOrEmpty(selectedEstatus))
+            {
+                resultadosFiltrados = resultadosFiltrados.Where(x =>
+                    x.Estatus?.Contains(selectedEstatus, StringComparison.OrdinalIgnoreCase) == true);
+            }
+
+            // Filtro de texto con debounce ya aplicado
+            if (!string.IsNullOrWhiteSpace(TextoBusqueda))
+            {
+                var busqueda = TextoBusqueda.Trim().ToLower();
+                resultadosFiltrados = resultadosFiltrados
+                    .AsParallel() // Procesamiento paralelo para mejor rendimiento
+                    .Select(item => new
+                    {
+                        Item = item,
+                        Score = CalculateSearchScore(item, busqueda)
+                    })
+                    .Where(x => x.Score > 0)
+                    .OrderByDescending(x => x.Score)
+                    .Select(x => x.Item);
+            }
+
+            elementosFiltrados = resultadosFiltrados.ToList();
+        }
+        finally
+        {
+            isSearching = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+
+
+
+    private int CalculateSearchScore(vwResultado item, string searchTerm)
+    {
+        // Primero verificar coincidencia exacta en ID
+        if (item.idResultado.ToString().Equals(searchTerm, StringComparison.OrdinalIgnoreCase))
+            return 100;
+
+        int score = 0;
+
+        // Luego módulo (40 puntos)
+        if (!string.IsNullOrEmpty(item.modulo) && item.modulo.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
+            score += 40;
+
+        // Luego usuario (30 puntos)
+        if (!string.IsNullOrEmpty(item.Usuario) && item.Usuario.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
+            score += 30;
+
+        // Luego métodos (20 puntos)
+        if (!string.IsNullOrEmpty(item.metodos) && item.metodos.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
+            score += 20;
+
+        // Finalmente otros campos (10 puntos cada uno)
+        if (!string.IsNullOrEmpty(item.mensaje) && item.mensaje.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
+            score += 10;
+        if (!string.IsNullOrEmpty(item.mensajeDeSistema) && item.mensajeDeSistema.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
+            score += 10;
+        if (!string.IsNullOrEmpty(item.Estatus) && item.Estatus.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
+            score += 10;
+        if (item.fecha.ToString("dd/MM/yyyy").Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
+            score += 10;
+
+        return score;
+    }
+
+    private bool ContainsAny(string source, string search)
+    {
+        return !string.IsNullOrEmpty(source) && source.ToLower().Contains(search);
+    }
+
+
+
+    private async Task CargarElementosCatalogo(bool cargarMas = false)
+    {
+        try
+        {
+            if (!cargarMas)
+            {
+                
+                elementosTabla = new List<vwResultado>();
+            }
+            isLoading = true;
+            StateHasChanged();
+
+            var jsonOptions = new JsonSerializerOptions
+        {
+            Converters = { new JsonDotNetDateConverter() },
+            PropertyNameCaseInsensitive = true
+        };
+            
+            var requestData = new
+            {
+                Movil=int.Parse("1"),
+                FechaInicial = fechaInicio.ToString("yyyy/MM/dd"),
+                FechaFinal =fechaFin.AddDays(1).AddSeconds(-1).ToString("yyyy/MM/dd"),
+                modulo = filtros.Pantalla,
+                Usuario = filtros.Usuario,
+                metodos = filtros.Metodo,
+                Estatus = filtros.Estatus,
+                Pagina = paginaActual,
+                
+                R = new cResul
+            {
+                modulo = "Bitacora",
+                metodos = "Cargar",
+                Token = AppState.SysToken,
+            }
+            };
+
+            using var client = new GetClient
+        {
+            R = new cResul
+            {
+                metodos = "obtGetClient",
+                Token = AppState.SysToken,
+                modulo = AppState.CurrentPage
+            }
+        }.GetClientConfigured();
+
+            var response = await client.PostAsJsonAsync("WebServices/ResultadosNA", requestData, jsonOptions);
+
+            if (response.IsSuccessStatusCode)
+            { 
+                string rawJsonResponse = await response.Content.ReadAsStringAsync();
+
+                var responseData = System.Text.Json.JsonSerializer.Deserialize<ServerApiResponse>(rawJsonResponse, jsonOptions);
+                
+            
+           if (cargarMas)
+            {
+                elementosTabla.AddRange(responseData.Data);
+            }
+            else 
+            {
+                elementosTabla = new List<vwResultado>(responseData.Data);
+            }
+
+            // else
+            // {
+            //     elementosTabla = new List<vwResultado>(responseData.Data);
+            // }
+            
+            totalRegistros = responseData.Total;
+            hayMasRegistros = (paginaActual * registrosPorPagina) < totalRegistros;
+            
+            await Buscar();
+            }
+            else
+            {
+               
+                await OnInitializedAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            SetTemporaryMessage("Error al cargar datos "+ ex, "alert-danger");
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+    private async Task CargarMasRegistros()
+    {
+        if (hayMasRegistros && !isLoading)
+        {
+            paginaActual++;
+            await CargarElementosCatalogo(true);
+        }
+    }
+    private void SetTemporaryMessage(string message, string messageClass)
+    {
+        recoveryMessage = message;
+        recoveryMessageClass = messageClass;
+        messageTimer.Stop();
+        messageTimer.Start();
+        StateHasChanged();
+    }
+    private async void ClearMessage()
+    {
+        await InvokeAsync(() =>
+        {
+            recoveryMessage = string.Empty;
+            recoveryMessageClass = string.Empty;
+            StateHasChanged();
+        });
+    }
+    private void ToggleFilters()
+    {
+        showFilters = !showFilters;
+        // No resetear los valores aquí
+    }
+    
+    // private int numeroAleatorio = 0;
+    // private Random random = new Random();
+    protected override async Task OnInitializedAsync()
+    {
+        messageTimer = new Timer(messageTimeout);
+        messageTimer.Elapsed += (sender, e) => ClearMessage();
+        messageTimer.AutoReset = false;
+        
+        // numeroAleatorio = random.Next(-6, -2);
+        fechaInicio = DateTime.Today.AddDays(-7);
+        fechaFin = DateTime.Today;
+        // Inicializar fechas (últimos 7 días por defecto)
+        
+        AppState.CurrentPage = "Bitacora";
+        await CargarCatalogosIniciales();
+        await CargarElementosCatalogo();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await CargarCatalogosIniciales();
+        }
+    }
+
+    private async Task CargarCatalogosIniciales()
+    {
+        try
+        {
+            isLoading = true;
+            hasError = false;
+            StateHasChanged();
+           
+            
+            // No necesitamos cargar elementos aquí, el SmartSelect lo maneja
+            // Solo necesitamos esperar a que el componente esté listo
+            await Task.Delay(100); // Pequeño delay para asegurar renderizado
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error al cargar catálogos: {ex.Message}";
+            hasError = true;
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task OnCatalogSelected() // Ahora manejado por el binding del SmartSelect
+    {
+        //if (!string.IsNullOrEmpty(seleccionadoM))
+        //{
+        await CargarElementosCatalogo();
+        // }
+        // else
+        // {
+        //     elementosTabla.Clear();
+        //     StateHasChanged();
+        // }
+    }
+
+
+    private async Task Recargar()
+    {
+        if (metodosSelect != null)
+        {
+            await metodosSelect.ReloadCatalogAsync();
+        }
+        await CargarElementosCatalogo();
+    }
+
+    private void EditarItem(string valor)
+    {
+        // Implementa la lógica de edición aquí
+        Console.WriteLine($"Editando item con valor: {valor}");
+    }
+
+    public void Dispose()
+    {
+        // Limpieza si es necesaria
+    }
+    // private string ConvertToBackendFormat(DateTime date)
+    // {
+    //     // Asegurarse de que la fecha esté en UTC
+    //     var dateUtc = date.Kind == DateTimeKind.Unspecified
+    //         ? DateTime.SpecifyKind(date, DateTimeKind.Utc)
+    //         : date.ToUniversalTime();
+
+    //     long timestamp = new DateTimeOffset(dateUtc).ToUnixTimeMilliseconds();
+    //     return $"/Date({timestamp})/";
+    // }
+
+
+
+} *@
+
+ 

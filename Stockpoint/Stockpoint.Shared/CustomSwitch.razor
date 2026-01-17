@@ -1,0 +1,96 @@
+﻿<div class="custom-switch-container" @onclick="ToggleSwitch">
+    <div class="custom-switch @(IsActive ? "active" : "")">
+        <div class="custom-switch-thumb"></div>
+    </div>
+    <span class="custom-switch-label @(IsActive ? "active" : "")">
+        <span class="custom-switch-icon">@(IsActive ? "✓" : "✕")</span>
+        @(IsActive ? "ACTIVO" : "INACTIVO")
+    </span>
+</div>
+
+@code {
+    [Parameter]
+    public int? Value { get; set; }
+
+    [Parameter]
+    public EventCallback<int?> ValueChanged { get; set; }
+
+    private bool IsActive => Value == 1;
+
+    private async Task ToggleSwitch()
+    {
+        Value = IsActive ? 0 : 1;
+        await ValueChanged.InvokeAsync(Value);
+    }
+}
+
+<style>
+    /* Contenedor principal */
+    .custom-switch-container {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        cursor: pointer;
+        user-select: none;
+        padding: 8px;
+        border-radius: 8px;
+        transition: background-color 0.2s ease;
+    }
+
+        .custom-switch-container:active {
+            background-color: rgba(0, 0, 0, 0.05);
+        }
+
+    /* Track del switch */
+    .custom-switch {
+        width: 52px;
+        height: 28px;
+        background-color: #e0e0e0;
+        border-radius: 14px;
+        position: relative;
+        transition: background-color 0.3s ease;
+    }
+
+    /* Thumb del switch */
+    .custom-switch-thumb {
+        position: absolute;
+        width: 24px;
+        height: 24px;
+        background-color: white;
+        border-radius: 50%;
+        top: 2px;
+        left: 2px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        transition: transform 0.3s ease, background-color 0.3s ease;
+    }
+
+    /* Estado activo */
+    .custom-switch.active {
+        background-color: #4CAF50;
+    }
+
+        .custom-switch.active .custom-switch-thumb {
+            transform: translateX(24px);
+            background-color: white;
+        }
+
+    /* Etiqueta */
+    .custom-switch-label {
+        font-size: 14px;
+        font-weight: 500;
+        color: #757575;
+        transition: color 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+        .custom-switch-label.active {
+            color: #4CAF50;
+            font-weight: 600;
+        }
+
+    .custom-switch-icon {
+        font-size: 16px;
+    }
+</style>

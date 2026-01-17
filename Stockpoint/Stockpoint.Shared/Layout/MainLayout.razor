@@ -1,0 +1,55 @@
+﻿@inherits LayoutComponentBase
+@inject Stockpoint.Shared.Services.AppStateService AppState
+<style>
+    /* .hidden-input {
+        position: absolute;
+        left: -9999px;
+        user-select: none;
+        pointer-events: none;
+        opacity: 0;
+        height: 0;
+        width: 0;
+        overflow: hidden;
+    } */
+</style>
+<div class="page">
+    <div class="sidebar">
+        <NavMenu />
+        
+     @code{
+            // Ejemplo estático
+
+            protected override void OnInitialized()
+            {
+                // Suscribirse al evento para actualizar la UI cuando cambie la página
+                AppState.OnStateChanged += StateHasChanged;
+                
+            }
+
+            public void Dispose()
+            {
+                // Limpiar el evento al destruir el componente (importante para evitar memory leaks)
+                AppState.OnStateChanged -= StateHasChanged;
+            }
+    }
+    </div>
+
+    <main>
+        
+
+        <article class="content px-4">
+            @Body
+        </article>
+        <div class="mt-4">
+            <input class="hidden-input  sysToken" value="@AppState.SysToken" readonly />
+            <input class="hidden-input  sysPantalla" value="@AppState.CurrentPage" readonly />
+        </div>
+        
+    </main>
+</div>
+
+<div id="blazor-error-ui" data-nosnippet>
+    An unhandled error has occurred.
+    <a href="." class="reload">Reload</a>
+    <span class="dismiss">🗙</span>
+</div>

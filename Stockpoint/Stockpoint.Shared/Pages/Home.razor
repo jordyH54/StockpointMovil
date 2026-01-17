@@ -1,0 +1,252 @@
+﻿@page "/"
+@using Stockpoint.Shared.Models
+@using System.Text.Json
+@inject HttpClient Http
+@inject NavigationManager Navigation
+@inject Stockpoint.Shared.Services.AppStateService AppState
+
+<style>
+    /* .titulo1{
+       font-family: 'Mifuente';
+    } */
+</style>
+
+<div class="login-container" style="color:white">
+    @if (!showRecovery)
+    {
+        <!-- Formulario de Login -->
+        <div class="login-form p-4 mb-4">
+            <h1 class="text-center mb-3 @* titulo1 *@">Bienvenido</h1>
+            <h2 class="text-center mb-5 subtitulos">Iniciar sesión</h2>
+
+            <div class="my-4 ">
+                <input type="email" @bind="usuario.CorreoElectronico" class="form-control inputs" placeholder="usuario@ejemplo.com" />
+            </div>
+
+            <div class="my-4">
+                <input type="password" @bind="usuario.ClaveAcceso" class="form-control inputs" placeholder="Ingresa tu contraseña" />
+            </div>
+
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <div class="alert alert-danger">@errorMessage</div>
+            }
+
+            <div class="text-center">
+                <button @onclick="Accesar" class="btn flex-grow-1 booton1">Accesar</button>
+            </div>
+
+            <div class="text-center mt-4">
+                <a @onclick="ShowRecovery" style="cursor: pointer; color:black;">Recuperar contraseña</a>
+            </div>
+        </div>
+    }
+    else
+    {
+        <!-- Formulario de Recuperación -->
+        <div class="recovery-form p-4">
+            <h1 class="text-center mb-3">Recuperar Contraseña</h1>
+            <p class="mb-5 text-center subtitulos">Ingrese su correo electrónico para recuperar su contraseña</p>
+
+            <div class="my-4">
+                <input type="email" @bind="emailRecuperacion" class="form-control inputs" placeholder="usuario@ejemplo.com" />
+            </div>
+
+            @if (!string.IsNullOrEmpty(recoveryMessage))
+            {
+                <div class="alert @recoveryMessageClass">@recoveryMessage</div>
+            }
+
+            <div class="d-flex flex-column flex-md-row gap-2 justify-content-center">
+                <button @onclick="RecuperarContrasena" class="btn flex-grow-1 booton1">Recuperar</button>
+                <button @onclick="CancelarRecuperacion" class="btn flex-grow-1 booton2">Cancelar</button>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    #region Variables de Estado
+    private bool showRecovery = false;
+    private string emailRecuperacion = string.Empty;
+    private string errorMessage = string.Empty;
+    private string recoveryMessage = string.Empty;
+    private string recoveryMessageClass = "alert-info";
+    private cUsuario usuario = new cUsuario();
+    #endregion
+
+    #region Inicialización
+    protected override void OnInitialized()
+    {
+        AppState.CurrentPage = "Login";
+    }
+    #endregion
+
+    #region Métodos de Interfaz de Usuario
+    private void ShowRecovery()
+    {
+        showRecovery = true;
+        errorMessage = string.Empty;
+        recoveryMessage = string.Empty;
+        usuario.ClaveAcceso = string.Empty;
+        usuario.CorreoElectronico = string.Empty;
+    }
+
+    private void CancelarRecuperacion()
+    {
+        showRecovery = false;
+        emailRecuperacion = string.Empty;
+        recoveryMessage = string.Empty;
+        errorMessage = string.Empty;
+    }
+    #endregion
+
+    #region Métodos de API
+    /// <summary>
+    /// Método centralizado para realizar llamadas al API
+    /// </summary>
+    /// <param name="metodo">Nombre del método a ejecutar en el backend</param>
+    /// <param name="data">Datos adicionales para la solicitud</param>
+    /// <returns>Respuesta HTTP de la solicitud</returns>
+    private async Task<HttpResponseMessage> CallApi(string metodo, object data)
+    {
+        var request = new
+        {
+            CorreoElectronico = metodo == "SolicitarClave" ? emailRecuperacion : usuario.CorreoElectronico,
+            ClaveAcceso = usuario.ClaveAcceso,
+            R = new cResul
+            {
+                modulo = "Login",
+                metodos = metodo,
+                Token = "",
+                fecha = DateTime.Now
+            }
+        };
+
+        var client = new GetClient
+        {
+            R = new cResul
+            {
+                metodos = "obtGetClient",
+                Token = "",
+                modulo = "Usuarios"
+            }
+        }.GetClientConfigured();
+
+        var response = await client.PostAsJsonAsync("WebServices/Usuarios", request);
+        client.Dispose();
+        return response;
+    }
+
+    /// <summary>
+    /// Procesa la respuesta del API de forma genérica
+    /// </summary>
+    /// <param name="response">Respuesta HTTP recibida</param>
+    /// <param name="isRecovery">Indica si es una respuesta de recuperación de contraseña</param>
+    private async Task ProcessResponse(HttpResponseMessage response, bool isRecovery = false)
+    {
+        var responseContent = await response.Content.ReadAsStringAsync();
+        var jsonResponse = JsonDocument.Parse(responseContent).RootElement;
+
+        var mensaje = jsonResponse.GetProperty("R").GetProperty("mensaje").GetString();
+        var estatus = jsonResponse.GetProperty("R").GetProperty("Estatus").GetString();
+
+        if (isRecovery)
+        {
+            recoveryMessage = mensaje;
+            recoveryMessageClass = estatus == "Correcto" ? "alert-success" : "alert-danger";
+
+            if (estatus == "Correcto")
+            {
+                await Task.Delay(3000);
+                showRecovery = false;
+                emailRecuperacion = string.Empty;
+            }
+            else
+            {
+                emailRecuperacion = string.Empty;
+            }
+        }
+        else
+        {
+            if (estatus == "Correcto")
+            {
+                if (jsonResponse.GetProperty("R").TryGetProperty("Menu", out var menuProperty))
+                {
+                    var menuItems = JsonSerializer.Deserialize<List<MenuItem>>(menuProperty.GetRawText());
+                    AppState.MenuData = menuItems;
+                }
+                AppState.SysToken = jsonResponse.GetProperty("R").GetProperty("Token").GetString();
+                Navigation.NavigateTo("/Counter");
+            }
+            errorMessage = estatus == "Error" ? mensaje : "No existe cuenta registrate";
+        }
+
+        usuario.CorreoElectronico = string.Empty;
+        usuario.ClaveAcceso = string.Empty;
+    }
+    #endregion
+
+    #region Métodos de Acción
+    private async Task RecuperarContrasena()
+    {
+        if (string.IsNullOrWhiteSpace(emailRecuperacion) || !emailRecuperacion.Contains("@") || !emailRecuperacion.Contains("."))
+        {
+            recoveryMessage = "Ingresa un correo válido";
+            recoveryMessageClass = "alert-danger";
+            return;
+        }
+
+        try
+        {
+            var response = await CallApi("SolicitarClave", null);
+            if (response.IsSuccessStatusCode)
+            {
+                await ProcessResponse(response, true);
+            }
+            else
+            {
+                recoveryMessage = $"Error del servidor: {response.StatusCode}";
+                recoveryMessageClass = "alert-danger";
+            }
+        }
+        catch (Exception ex)
+        {
+            recoveryMessage = $"Error: {ex.Message}";
+            recoveryMessageClass = "alert-danger";
+        }
+    }
+
+    private async Task Accesar()
+    {
+        if (string.IsNullOrWhiteSpace(usuario.CorreoElectronico) || !usuario.CorreoElectronico.Contains("@") || !usuario.CorreoElectronico.Contains("."))
+        {
+            errorMessage = "Ingresa un correo válido";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(usuario.ClaveAcceso))
+        {
+            errorMessage = "Ingresa tu contraseña";
+            return;
+        }
+
+        try
+        {
+            var response = await CallApi("Acceso", null);
+            if (response.IsSuccessStatusCode)
+            {
+                await ProcessResponse(response);
+            }
+            else
+            {
+                errorMessage = "Error en el servidor";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error de conexión: {ex.Message}";
+        }
+    }
+    #endregion
+}

@@ -1,0 +1,366 @@
+﻿@page "/inicio"
+@inject Stockpoint.Shared.Models.GetClient ApiClient
+@inject Stockpoint.Shared.Services.AppStateService AppState
+@inject Stockpoint.Shared.Services.CatalogService CatalogService
+@using Stockpoint.Shared.Models
+@using Stockpoint.Shared.Services
+@using System.Text.Json
+@using System.Timers
+@inject IJSRuntime JSRuntime
+
+<style>
+    /* ===== ESTILOS GENERALES RESPONSIVOS ===== */
+    .page-container {
+        padding: 0 2vw;
+        max-width: 100%;
+        overflow-x: hidden;
+    }
+
+    /* ===== CARRUSEL RESPONSIVE ===== */
+    .carousel-container {
+        position: relative;
+        width: 100vw;
+        max-width: 400px;
+        background: #E6F3FA;
+        overflow: hidden;
+        border-radius: 10px;
+        box-shadow: 0 0px 10px rgba(0,0,0,0.15);
+        padding: 3vw;
+    }
+
+    .carousel-slides {
+        position: relative;
+        width: 100%;
+        height: 0;
+        padding-bottom: 75%; /* Relación 4:3 */
+        border-radius: 15px;
+        overflow: hidden;
+        background: #000;
+    }
+
+    .carousel-slide {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        opacity: 0;
+        transition: opacity 0.6s ease-in-out;
+        transform: translateZ(0);
+    }
+
+        .carousel-slide.active {
+            opacity: 1;
+        }
+
+    .carousel-image {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border-radius: 12px;
+        transition: transform 0.3s ease;
+    }
+
+        .carousel-image:hover {
+            transform: scale(1.02);
+        }
+
+    /* ===== BOTONES DE NAVEGACIÓN ===== */
+    .carousel-btn {
+        position: absolute;
+        top: 40%;
+        transform: translateY(-40%);
+        background: rgba(255, 255, 255, 0.95);
+        color: #2c3e50;
+        border: none;
+        width: 10vw;
+        height: 10vw;
+        max-width: 30px;
+        max-height: 30px;
+        min-width: 30px;
+        min-height: 30px;
+        border-radius: 50%;
+        cursor: pointer;
+        z-index: 100;
+        font-size: 1.5rem;
+        font-weight: bold;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        transition: all 0.3s ease;
+        backdrop-filter: blur(10px);
+    }
+
+        .carousel-btn:hover {
+            background: rgba(255, 255, 255, 1);
+            transform: translateY(-50%) scale(1.1);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+        }
+
+        .carousel-btn.prev {
+            left: 2vw;
+        }
+
+        .carousel-btn.next {
+            right: 2vw;
+        }
+
+    /* ===== INDICADORES ===== */
+    .carousel-indicators {
+        position: relative; /* Cambiado de absolute a relative */
+        bottom: 0; /* Eliminado el valor negativo */
+        left: 35%;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 3vw;
+        z-index: 100;
+        padding: 2vw;
+        background: white;
+        border-radius: 20px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        backdrop-filter: blur(10px);
+        margin-top: 15px; /* Espacio entre el carrusel y los indicadores */
+        width: fit-content;
+    }
+
+    .carousel-indicator {
+        width: 3vw;
+        height: 3vw;
+        min-width: 12px;
+        min-height: 12px;
+        max-width: 15px;
+        max-height: 15px;
+        border-radius: 50%;
+        background: #E6F3FA;
+        cursor: pointer;
+        border: none;
+        transition: all 0.3s ease;
+        transform: translateZ(0);
+    }
+
+        .carousel-indicator.active {
+            background: #9bd7f7;
+            transform: scale(1.4);
+            box-shadow: 0 2px 8px rgba(52, 152, 219, 0.4);
+        }
+
+        .carousel-indicator:hover {
+            background: #9bd7f7;
+            transform: scale(1.2);
+        }
+
+    /* ===== MEDIA QUERIES RESPONSIVAS ===== */
+    @@media (max-width: 480px) {
+        .carousel-container {
+            width: 85vw;
+            margin-bottom: 25vw;
+        }
+
+        .carousel-btn {
+            width: 14vw;
+            height: 14vw;
+            font-size: 1.3rem;
+        }
+
+        .carousel-indicators {
+            margin-top: 12px;
+            gap: 4vw;
+        }
+
+        .carousel-indicator {
+            width: 4vw;
+            height: 4vw;
+        }
+    }
+
+    @@media (max-width: 360px) {
+        .carousel-container {
+            width: 92vw;
+            margin-bottom: 30vw;
+        }
+
+        .carousel-btn {
+            width: 16vw;
+            height: 16vw;
+            font-size: 1.1rem;
+        }
+
+        .carousel-indicators {
+            margin-top: 10px;
+            gap: 5vw;
+        }
+    }
+
+    @@media (min-width: 768px) {
+        .carousel-container {
+            width: 70vw;
+            max-width: 500px;
+            margin-bottom: 15vw;
+        }
+
+        .carousel-indicators {
+            margin-top: 20px;
+            gap: 2vw;
+        }
+    }
+
+    @@media (min-width: 1024px) {
+        .carousel-container {
+            width: 50vw;
+            max-width: 600px;
+            margin-bottom: 10vw;
+        }
+
+        .carousel-indicators {
+            bottom: -8vw;
+        }
+    }
+
+    /* ===== ANIMACIONES ===== */
+    @@keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .carousel-container {
+        animation: fadeIn 0.8s ease-out;
+    }
+
+    /* ===== MEJORAS DE ACCESIBILIDAD ===== */
+    .carousel-btn:focus,
+    .carousel-indicator:focus {
+        outline: 2px solid #3498db;
+        outline-offset: 2px;
+    }
+
+    /* ===== EFECTO DE CARGA ===== */
+    .carousel-image {
+        background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+        background-size: 200% 100%;
+        animation: loading 1.5s infinite;
+    }
+
+    @@keyframes loading {
+        0% {
+            background-position: 200% 0;
+        }
+
+        100% {
+            background-position: -200% 0;
+        }
+    }
+</style>
+
+<div class="page-container pt-4 ">
+    <h1 style="margin-bottom:10vw">Tienda MegaNuez</h1>
+
+    <div class="carousel-container">
+        <div class="carousel-slides">
+            @foreach (var image in images)
+            {
+                <div class="carousel-slide @(image == images[currentIndex] ? "active" : "")">
+                    <img class="carousel-image"
+                         src="@image.Url"
+                         alt="@image.AltText"
+                         loading="lazy" />
+                </div>
+            }
+        </div>
+
+        <button class="carousel-btn prev" @onclick="PrevSlide" aria-label="Imagen anterior">‹</button>
+        <button class="carousel-btn next" @onclick="NextSlide" aria-label="Imagen siguiente">›</button>
+
+        <div class="carousel-indicators">
+            @for (int i = 0; i < images.Count; i++)
+            {
+                int index = i; // Variable local para capturar el valor actual
+                               <button class="carousel-indicator @(i == currentIndex ? "active" : "")"
+                                       @onclick="@(() => GoToSlide(index))"
+                                       aria-label="Ir a imagen @(i + 1)"></button>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private int currentIndex = 0;
+    private Timer autoSlideTimer;
+    private List<CarouselImage> images = new();
+
+    public class CarouselImage
+    {
+        public string Url { get; set; } = string.Empty;
+        public string AltText { get; set; } = string.Empty;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Cargar imágenes (pueden ser locales o remotas)
+        images = new List<CarouselImage>
+        {
+            new() { Url = "https://media.istockphoto.com/id/487787108/es/foto/can-of-coca-cola-sobre-hielo.jpg?s=612x612&w=0&k=20&c=P9lW89YLz4kdzrvj4TItEAS10J_wDAq3fAd21vVdk-c=", AltText = "Imagen 1" },
+            new() { Url = "https://i5.walmartimages.com.mx/gr/images/product-images/img_large/00750101116765L.jpg", AltText = "Imagen 2" },
+            new() { Url = "https://m.media-amazon.com/images/I/613LjFNOwrL.jpg", AltText = "Imagen 3" },
+            new() { Url = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR4FL1Cf22jSGiFhV5jnzhRtdhLP9b-7Zs6pw&s", AltText = "Imagen 4" },
+            new() { Url = "https://meganuez.ocadis.org/images/product-thumb-2.png", AltText = "Imagen 5" }
+        };
+
+        StartAutoSlide();
+    }
+
+    private void NextSlide()
+    {
+        currentIndex = (currentIndex + 1) % images.Count;
+        StateHasChanged();
+        ResetAutoSlide();
+    }
+
+    private void PrevSlide()
+    {
+        currentIndex = (currentIndex - 1 + images.Count) % images.Count;
+        StateHasChanged();
+        ResetAutoSlide();
+    }
+
+    private void GoToSlide(int index)
+    {
+        currentIndex = index;
+        StateHasChanged();
+        ResetAutoSlide();
+    }
+
+    private void StartAutoSlide()
+    {
+        autoSlideTimer = new System.Timers.Timer(5000);
+        autoSlideTimer.Elapsed += async (sender, e) =>
+        {
+            await InvokeAsync(() =>
+            {
+                NextSlide();
+                StateHasChanged();
+            });
+        };
+        autoSlideTimer.AutoReset = true;
+        autoSlideTimer.Enabled = true;
+        autoSlideTimer.Start();
+    }
+
+    private void ResetAutoSlide()
+    {
+        autoSlideTimer?.Dispose();
+        StartAutoSlide();
+    }
+
+    public void Dispose()
+    {
+        autoSlideTimer?.Dispose();
+    }
+}

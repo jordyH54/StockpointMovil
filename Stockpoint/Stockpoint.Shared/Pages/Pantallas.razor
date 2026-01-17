@@ -1,0 +1,1737 @@
+﻿@page "/pantallas"
+@using System.Text.Json
+@using System.Net.Http.Json
+@inject HttpClient Http
+@inject Stockpoint.Shared.Services.AppStateService AppState
+@inject Stockpoint.Shared.Services.IconosService IconService
+@using Stockpoint.Shared.Models
+@using System.Timers
+
+<style>
+    /* Variables de color */
+    
+
+    .permisos-mobile-container {
+        width: 100%;
+        max-width: 500px;
+        margin: 0 auto;
+        padding: 15px;
+        font-family: 'Segoe UI', Roboto, sans-serif;
+    }
+    
+    .permisos-mobile-header {
+        background: var(--primary-color);
+        padding: 12px;
+        border-radius: 8px;
+        margin-bottom: 15px;
+        text-align: center;
+        color: white;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .permisos-mobile-title {
+        margin: 0;
+        font-size: 18px;
+        font-weight: 600;
+    }
+    
+    .permisos-mobile-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+    
+    .permisos-mobile-item {
+        padding: 12px 15px;
+        border-bottom: 1px solid #e0e0e0;
+        background: white;
+    }
+    
+    .permisos-mobile-label {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        width: 100%;
+        cursor: pointer;
+    }
+    
+    .permisos-mobile-text {
+        font-size: 16px;
+        color: #333;
+    }
+    
+    .permisos-mobile-switch {
+        position: relative;
+        display: inline-block;
+        width: 50px;
+        height: 26px;
+    }
+    
+    .permisos-mobile-toggle {
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+    
+    .permisos-mobile-slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: #ccc;
+        transition: .4s;
+        border-radius: 34px;
+    }
+    
+    .permisos-mobile-slider:before {
+        position: absolute;
+        content: "";
+        height: 18px;
+        width: 18px;
+        left: 4px;
+        bottom: 4px;
+        background-color: white;
+        transition: .4s;
+        border-radius: 50%;
+    }
+    
+    .permisos-mobile-toggle:checked + .permisos-mobile-slider {
+        background-color: var(--primary-color);
+    }
+    
+    .permisos-mobile-toggle:checked + .permisos-mobile-slider:before {
+        transform: translateX(24px);
+    }
+    
+    .permisos-mobile-loading {
+        text-align: center;
+        padding: 20px;
+        color: #666;
+    }
+    
+    .permisos-mobile-actions {
+        margin-top: 20px;
+        text-align: center;
+    }
+    
+    .permisos-mobile-cancel-btn {
+        background: none;
+        color: #dc3545;
+        border: 1px solid #dc3545;
+        padding: 10px 20px;
+        border-radius: 25px;
+        font-size: 16px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+    
+    .permisos-mobile-cancel-btn:hover {
+        background:none;
+        color: white;
+    }
+    
+    .permisos-mobile-cancel-btn i {
+        margin-right: 5px;
+    }
+
+
+    /* Estilos generales */
+    .menu-container {
+        /* background-color: var(--background-color); */
+        min-height: 100vh;
+        padding: 1rem;
+    }
+
+    .menu-header {
+        display: flex;
+        justify-content: flex-end; /* Alinea todo el contenido a la derecha */
+        align-items: center;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        background-color: var(--primary-light);
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+
+    }
+
+        .menu-header h2 {
+            margin: 0;
+            font-size: 1.25rem;
+            color: var(--text-color);
+            flex-grow: 1;
+            padding-left: 0.75rem;
+            font-weight: bold;
+        }
+
+    .btn-refresh {
+        background: none;
+        border: none;
+        color: var(--primary-color);
+        font-size: 1rem;
+        cursor: pointer;
+        padding: 0.5rem;
+        
+    }
+
+    /* Estilos para los grupos de menú */
+    .menu-group {
+        background-color: var(--card-color);
+        border-radius: 12px;
+        margin-bottom: 1rem;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+
+    .menu-item-parent {
+        display: flex;
+        align-items: center;
+        padding: 1rem;
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+
+        .menu-item-parent:hover {
+            background-color: var(--primary-light);
+        }
+
+    .menu-item-child {
+        display: flex;
+        align-items: center;
+        padding: 0.75rem 1rem 0.75rem 3rem;
+        cursor: pointer;
+        transition: background-color 0.2s;
+        border-top: 1px solid var(--border-color);
+    }
+
+        .menu-item-child:hover {
+            background-color: var(--primary-light);
+        }
+
+    .menu-icon {
+        width: 2rem;
+        text-align: center;
+        color: var(--primary-color);
+    }
+
+    .menu-title {
+        flex-grow: 1;
+        color: var(--text-color);
+        font-size: 0.95rem;
+    }
+
+    .menu-item-parent .menu-title {
+        font-weight: bold;
+    }
+
+    .menu-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .btn-edit {
+        background: none;
+        border: none;
+        color: var(--secondary-color);
+        padding: 0.5rem;
+        cursor: pointer;
+        font-size: 1rem;
+        opacity: 0.8;
+        transition: opacity 0.2s;
+    }
+
+        .btn-edit:hover {
+            opacity: 1;
+            color: var(--primary-color);
+        }
+
+    .arrow-icon {
+        color: var(--secondary-color);
+        margin-left: 0.5rem;
+        transition: transform 0.2s;
+        width: 1rem;
+        text-align: center;
+    }
+
+    .submenu-container {
+        transition: max-height 0.3s ease-out;
+        max-height: 1000px;
+        overflow: hidden;
+    }
+
+        .submenu-container.collapsed {
+            max-height: 0;
+        }
+
+    /* Loading state */
+    .loading-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 50vh;
+    }
+
+    .spinner-container {
+        position: relative;
+        width: 60px;
+        height: 60px;
+        margin-bottom: 1rem;
+    }
+
+    .spinner {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        border: 4px solid var(--primary-light);
+        border-top-color: var(--primary-color);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+
+    .spinner-inner {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 40px;
+        height: 40px;
+        border: 3px solid transparent;
+        border-top-color: rgba(67, 97, 238, 0.5);
+        border-radius: 50%;
+        animation: spin 1.5s linear infinite reverse;
+    }
+
+    .loading-text {
+        color: var(--text-light);
+        font-size: 1rem;
+    }
+
+    /* Empty state */
+    .empty-state {
+        text-align: center;
+        padding: 2rem;
+        margin-top: 2rem;
+    }
+
+    .empty-icon {
+        font-size: 3rem;
+        color: var(--text-light);
+        margin-bottom: 1rem;
+    }
+
+    .empty-state h3 {
+        color: var(--text-color);
+        margin-bottom: 0.5rem;
+        font-weight: bold;
+    }
+
+    .empty-state p {
+        color: var(--text-light);
+        margin-bottom: 1.5rem;
+    }
+
+    .btn-primary {
+        background-color: var(--primary-color);
+        color: white;
+        border: none;
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        font-weight: 500;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    /* Icon styles */
+    .svg-icon {
+        width: 1rem;
+        height: 1rem;
+        fill: currentColor;
+        vertical-align: middle;
+    }
+
+    /* Animaciones */
+    @@keyframes spin {
+        0% {
+            transform: rotate(0deg);
+        }
+
+        100% {
+            transform: rotate(360deg);
+        }
+    }
+
+    /* Efectos de transición */
+    .menu-item-parent, .menu-item-child {
+        transition: all 0.2s ease;
+    }
+</style>
+
+@if (!string.IsNullOrEmpty(recoveryMessage))
+    {
+        <div class="alert @recoveryMessageClass alert-dismissible fade show mb-3 py-2">
+            <div class="d-flex align-items-center">
+                <span>@recoveryMessage</span>
+                <button type="button" class="btn-close ms-auto" @onclick="ClearMessage"></button>
+            </div>
+        </div>
+    }
+@if (isLoading)
+{
+    <div class="loading-container">
+        <div class="spinner-container">
+            <div class="spinner"></div>
+        </div>
+        <p class="loading-text">Cargando Pantallas...</p>
+    </div>
+}
+else if (elementosTabla.Any())
+{
+    
+    <div class="menu-container">
+        <h1>Pantallas</h1>
+        <div class="menu-header ">
+            <!-- SVG para el icono de lista -->
+
+
+            <button @onclick="CrearPantalla" class="btn btn-my-primary">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-plus-square" viewBox="0 0 16 16">
+                    <path d="M14 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1zM2 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2z" />
+                    <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4" />
+                </svg> Nuevo
+            </button>
+          
+            <button class="btn-refresh" @onclick="CargarTablaPantallas">
+                <!-- SVG para el icono de refrescar -->
+                <svg class="svg-icon" viewBox="0 0 20 20">
+                    <path d="M10 3a7 7 0 00-7 7h2a5 5 0 015-5V3zm0 10v4a7 7 0 007-7h-2a5 5 0 01-5 5z" />
+                </svg>
+            </button>
+        </div>
+        @if (editar == true)
+        {
+            <div class="menu-list">
+                @foreach (var grupo in menusAgrupados)
+                {
+                    <div class="menu-group">
+                        <!-- Menú principal -->
+                        <div class="menu-item-parent " @onclick="@(() => ToggleSubmenu(grupo.Principal.idPantalla))">
+                            <span class="grid-badge menu-icon">
+                                @((MarkupString)IconService.obtenerIconos(grupo.Principal.Pantalla))
+                            </span>
+
+                            <div class="menu-title"><strong>@grupo.Principal.Pantalla</strong></div>
+                             <button class="btn-edit" @onclick="@(async() => await  EditarPermisos(grupo.Principal.idPantalla))"
+                                        @onclick:preventDefault
+                                        @onclick:stopPropagation
+                                        title="Editar @grupo.Principal.Pantalla">
+                                    <!-- SVG para icono de editar -->
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-person-check" viewBox="0 0 16 16">
+                                        <path d="M12.5 16a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7m1.679-4.493-1.335 2.226a.75.75 0 0 1-1.174.144l-.774-.773a.5.5 0 0 1 .708-.708l.547.548 1.17-1.951a.5.5 0 1 1 .858.514M11 5a3 3 0 1 1-6 0 3 3 0 0 1 6 0M8 7a2 2 0 1 0 0-4 2 2 0 0 0 0 4" />
+                                        <path d="M8.256 14a4.5 4.5 0 0 1-.229-1.004H3c.001-.246.154-.986.832-1.664C4.484 10.68 5.711 10 8 10q.39 0 .74.025c.226-.341.496-.65.804-.918Q8.844 9.002 8 9c-5 0-6 3-6 4s1 1 1 1z" />
+                                    </svg>
+                              </button>
+                            <div class="menu-actions">
+                                <button class="btn-edit" @onclick="@(async() => await  EditarItem(grupo.Principal.idPantalla))"
+                                        @onclick:preventDefault
+                                        @onclick:stopPropagation
+                                        title="Editar @grupo.Principal.Pantalla">
+                                    <!-- SVG para icono de editar -->
+                                    <svg class="svg-icon" viewBox="0 0 20 20">
+                                        <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                                    </svg>
+                                </button>
+                               
+                                
+                                @if (grupo.SubMenus.Any())
+                                {
+                                    <!-- SVG para flecha arriba/abajo -->
+                                    @if (IsSubmenuHidden(grupo.Principal.idPantalla))
+                                    {
+                                        <svg class="svg-icon arrow-icon" viewBox="0 0 20 20">
+                                            <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
+                                        </svg>
+                                    }
+                                    else
+                                    {
+                                        <svg class="svg-icon arrow-icon" viewBox="0 0 20 20">
+                                            <path d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" />
+                                        </svg>
+                                    }
+                                }
+                            </div>
+                        </div>
+
+                        <!-- Submenús -->
+                        @if (grupo.SubMenus.Any())
+                        {
+                            <div class="submenu-container @(IsSubmenuHidden(grupo.Principal.idPantalla) ? "collapsed" : "")">
+                                @foreach (var submenu in grupo.SubMenus)
+                                {
+                                    <div class="menu-item-child" >
+                                        <div class="menu-icon">
+                                            <!-- SVG para icono de documento -->
+                                            <span class="grid-badge">
+                                                @((MarkupString)IconService.obtenerIconos(submenu.Pantalla))
+                                            </span>
+
+                                        </div>
+                                        <div class="menu-title">@submenu.Pantalla</div>
+                                        <button class="btn-edit" @onclick="@(async() => await  EditarPermisos(submenu.idPantalla))"
+                                                    @onclick:preventDefault
+                                                    @onclick:stopPropagation
+                                                    title="Editar @submenu.Pantalla">
+                                                <!-- SVG para icono de editar -->
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-person-check" viewBox="0 0 16 16">
+                                                    <path d="M12.5 16a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7m1.679-4.493-1.335 2.226a.75.75 0 0 1-1.174.144l-.774-.773a.5.5 0 0 1 .708-.708l.547.548 1.17-1.951a.5.5 0 1 1 .858.514M11 5a3 3 0 1 1-6 0 3 3 0 0 1 6 0M8 7a2 2 0 1 0 0-4 2 2 0 0 0 0 4" />
+                                                    <path d="M8.256 14a4.5 4.5 0 0 1-.229-1.004H3c.001-.246.154-.986.832-1.664C4.484 10.68 5.711 10 8 10q.39 0 .74.025c.226-.341.496-.65.804-.918Q8.844 9.002 8 9c-5 0-6 3-6 4s1 1 1 1z" />
+                                                </svg>
+                                        </button>
+                                        <div class="menu-actions" >
+                                            <button class="btn-edit" title="Editar @submenu.Pantalla"
+                                                @onclick="@(async() => await  EditarItem(submenu.idPantalla))"
+                                                @onclick:preventDefault
+                                                @onclick:stopPropagation
+                                                >
+
+                                                <!-- SVG para icono de editar -->
+                                                <svg class="svg-icon" viewBox="0 0 16 16">
+                                                    <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                                                </svg>
+                                            </button>
+                                            
+                                        </div>
+                                        
+
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        }else if (editarPermisos)
+        {
+            <div class="permisos-mobile-container">
+    <!-- Encabezado con estilo móvil -->
+                <div class="permisos-mobile-header">
+                    <h4 class="permisos-mobile-title">Permisos</h4>
+                </div>
+    
+                <!-- Lista de permisos con diseño móvil optimizado -->
+                <div class="permisos-mobile-list-container">
+                    @if (pantallaR != null)
+                    {
+                        <ul class="permisos-mobile-list">
+                            @foreach (var item in pantallaR)
+                            {
+                                <li class="permisos-mobile-item">
+                                    <label class="permisos-mobile-label">
+                                        <span class="permisos-mobile-text">@item.Texto</span>
+                                        <div class="permisos-mobile-switch">
+                                            <input class="permisos-mobile-toggle rol" 
+                                                   type="checkbox" 
+                                                   value="@item.idRol" 
+                                                   checked="@item.PermisoActivo"
+                                                   @onchange="@(e => HandlePermissionChange(e, item))" />
+                                            <span class="permisos-mobile-slider"></span>
+                                        </div>
+                                    </label>
+                                </li>
+                            }
+                        </ul>
+                    }
+                    else
+                    {
+                        <div class="permisos-mobile-loading">
+                            <i class="bi bi-arrow-repeat"></i> Cargando permisos...
+                        </div>
+                    }
+                </div>
+    
+                <!-- Botones con mejor tacto para móviles -->
+                <div class="d-flex justify-content-end gap-2 mt-4">
+                        <button class="btn btn-danger btn-sm" @onclick="cancelar" >
+                            <i class="bi bi-x-lg me-1"></i>Cancelar
+                        </button>
+                        <button class="btn btn-primary btn-sm" @onclick="guardarPermisos">
+                            Guardar
+                        </button>
+                    </div>
+            </div>
+
+
+        }
+        else if (formulario)
+        {
+            <div class="card border-0 shadow-sm">
+                
+
+                <div class="card-body p-3">
+                    <div class="row g-2">
+                        <!-- ID (solo en edición) -->
+                        @if (itemSeleccionado2.idPantalla > 0)
+                        {
+                            <div class="col-12">
+                                <label class="form-label small text-muted">ID Pantalla</label>
+                                <input type="number" @bind="itemSeleccionado2.idPantalla"
+                                       class="form-control form-control-sm bg-light" readonly />
+                            </div>
+                        }
+
+                        <!-- Campos del formulario -->
+                        <div class="col-12 col-md-6">
+                            <label class="form-label small fw-bold">Nombre Pantalla</label>
+                            <input type="text" @bind="itemSeleccionado2.Pantalla"
+                                   class="form-control form-control-sm" />
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <label class="form-label small fw-bold">Descipción</label>
+                            <input type="text" @bind="itemSeleccionado2.Descripcion"
+                                   class="form-control form-control-sm" />
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <label class="form-label small fw-bold">Orden</label>
+                            <div class="input-group input-group-sm">
+                                <input type="number" @bind="itemSeleccionado2.Orden"
+                                       class="form-control" />
+                            </div>
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <label class="form-label small fw-bold">Link</label>
+                            <input type="text" @bind="itemSeleccionado2.url"
+                                   class="form-control form-control-sm" />
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label small fw-bold">Link Movil</label>
+                            <input type="text" @bind="itemSeleccionado2.urlMovil "
+                                   class="form-control form-control-sm" />
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <label class="form-label small fw-bold">Estilos</label>
+                            <input type="text" @bind="itemSeleccionado2.Clase"
+                                   class="form-control form-control-sm" />
+                        </div>
+
+                        @* <div class="col-md-6 mb-2">
+                            <label class="form-label fw-bold">ID Rol</label>
+                            <input type="text" @bind="itemSeleccionado2.idRol"
+                                   class="form-control form-control-sm" />
+                        </div> *@
+                        <div class="col-md-6 mb-2">
+                            <label class="form-label fw-bold">Estatus</label>
+                            <SmartSelect Class="form-select form-select-sm"
+                                         catalogo="Estatus Pantalla"
+                                         @bind-SelectedValue="selectedIdEstatus"
+                                         @ref="selectedIdEstatusC"
+                                         DefaultPrompt="Estatus Pantalla"
+                                         EmptyMessage="No hay usuarios disponibles" />
+                        </div>
+                        <div class="col-md-6 mb-2">
+                            <label class="form-label fw-bold">Origen</label>
+                            <SmartSelect Class="form-select form-select-sm"
+                                         catalogo="Origen para pantallas"
+                                         @bind-SelectedValue="selectedIdOrigen"
+                                         @ref="selectedIdOrigenC"
+                                         DefaultPrompt="Origen para pantallas"
+                                         EmptyMessage="No hay usuarios disponibles" />
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label small fw-bold">ToolTip</label>
+                            <input type="text" @bind="itemSeleccionado2.ToolTip"
+                                   class="form-control form-control-sm" />
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label small fw-bold">Pregunta para eliminar</label>
+                            <input type="text" @bind="itemSeleccionado2.PreguntaEliminar"
+                                   class="form-control form-control-sm" />
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label small fw-bold">Mensaje guardar</label>
+                            <input type="text" @bind="itemSeleccionado2.MsgGuardar"
+                                   class="form-control form-control-sm" />
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label small fw-bold">Mensaje eliminar</label>
+                            <input type="text" @bind="itemSeleccionado2.MsgEliminar"
+                                   class="form-control form-control-sm" />
+                        </div>
+
+                        <!-- Campos de solo lectura -->
+
+                    </div>
+
+                    <!-- Botones de acción -->
+                    <div class="d-flex justify-content-end gap-2 mt-4">
+                        <button class="btn btn-danger btn-sm" @onclick="cancelar" >
+                           Cancelar
+                        </button>
+                        <button class="btn btn-primary btn-sm" @onclick="GuardarPantalla">
+                           Guardar
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+        }
+
+    </div>
+}
+else
+{
+    <div class="empty-state">
+        <div class="empty-icon">
+            <!-- SVG para icono de lista vacía -->
+            <svg class="svg-icon" style="width:3rem;height:3rem;" viewBox="0 0 20 20">
+                <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
+                <path d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5z" />
+                <path d="M8 11h4" />
+                <path d="M8 15h4" />
+            </svg>
+        </div>
+        <h3>No hay pantallas disponibles</h3>
+        <p>No se encontraron menús configurados en el sistema</p>
+        <button class="btn-primary" @onclick="CargarTablaPantallas">
+            <!-- SVG para icono de refrescar -->
+            <svg class="svg-icon" viewBox="0 0 20 20">
+                <path d="M10 3a7 7 0 00-7 7h2a5 5 0 015-5V3zm0 10v4a7 7 0 007-7h-2a5 5 0 01-5 5z" />
+            </svg>
+            Intentar nuevamente
+        </button>
+    </div>
+}
+@code {
+    #region Variables y Propiedades
+    // Variables para controlar submenús ocultos
+    private List<int> hiddenSubmenus = new List<int>();
+    public bool editar = true;
+    public bool editarPermisos = false;
+    public bool formulario = false;
+    private SmartSelect selectedIdEstatusC, selectedIdOrigenC;
+
+    private Timer messageTimer;
+    private int messageTimeout = 5000;
+    private string recoveryMessage = string.Empty;
+    private string recoveryMessageClass = "alert-info";
+
+    private string _selectedUsuario, _selectedIdEstatus, _selectedIdOrigen;
+
+    private string selectedIdEstatus
+    {
+        get => _selectedIdEstatus;
+        set
+        {
+            if (_selectedIdEstatus != value)
+            {
+                _selectedIdEstatus = value;
+                if (itemSeleccionado2 != null && int.TryParse(value, out int idEstatus))
+                {
+                    itemSeleccionado2.idEstatus = idEstatus;
+                }
+            }
+        }
+    }
+
+    private string selectedIdOrigen
+    {
+        get => _selectedIdOrigen;
+        set
+        {
+            if (_selectedIdOrigen != value)
+            {
+                _selectedIdOrigen = value;
+                if (itemSeleccionado2 != null && int.TryParse(value, out int idOrigen))
+                {
+                    itemSeleccionado2.idOrigen = idOrigen;
+                }
+            }
+        }
+    }
+
+    private bool isLoading = true;
+    public List<vwPantallas> elementosTabla { get; set; } = new List<vwPantallas>();
+    private List<MenuGrupo> menusAgrupados = new List<MenuGrupo>();
+    private vwPantallas itemSeleccionado;
+    private vwPantallas itemSeleccionado2 = new();
+    private List<Rol> pantallaR = new List<Rol>();
+    #endregion
+
+    #region Métodos de Ciclo de Vida
+    protected override async Task OnInitializedAsync()
+    {
+        // Inicializar itemSeleccionado2
+        itemSeleccionado2 = new vwPantallas();
+        AppState.CurrentPage = "Pantalla";
+        // Inicializar el timer para mensajes
+        messageTimer = new Timer(messageTimeout);
+        messageTimer.Elapsed += (sender, e) => ClearMessage();
+        messageTimer.AutoReset = false;
+
+        await CargarTablaPantallas();
+    }
+    #endregion
+
+    #region Métodos de Mensajes
+    private async void ClearMessage()
+    {
+        await InvokeAsync(() =>
+        {
+            recoveryMessage = string.Empty;
+            recoveryMessageClass = string.Empty;
+            StateHasChanged();
+        });
+    }
+
+    private void SetTemporaryMessage(string message, string messageClass)
+    {
+        recoveryMessage = message;
+        recoveryMessageClass = messageClass;
+        messageTimer.Stop();
+        messageTimer.Start();
+        StateHasChanged();
+    }
+    #endregion
+
+    #region Métodos de Gestión de Pantallas
+    public async Task CrearPantalla()
+    {
+        editar = false;
+        editarPermisos = false;
+        formulario = true;
+        itemSeleccionado2 = new vwPantallas
+        {
+            Pantalla = string.Empty,
+            idPantalla = 0,
+            Descripcion = string.Empty,
+            Orden = 0,
+            url = string.Empty,
+            ToolTip = string.Empty,
+            MsgGuardar = string.Empty,
+            MsgEliminar = string.Empty,
+            PreguntaEliminar = string.Empty,
+            idEstatus = 0,
+            idOrigen = 0,
+            Estatus = string.Empty,
+            Clase = string.Empty,
+            urlMovil = string.Empty,
+        };
+        selectedIdEstatus = "";
+        selectedIdOrigen = "";
+        StateHasChanged();
+    }
+
+    private async Task GuardarPantalla()
+    {
+        try
+        {
+            var request = new
+            {
+                Pantalla = itemSeleccionado2.Pantalla,
+                idPantalla = itemSeleccionado2.idPantalla,
+                Descripcion = itemSeleccionado2.Descripcion,
+                Orden = itemSeleccionado2.Orden,
+                url = itemSeleccionado2.url,
+                ToolTip = itemSeleccionado2.ToolTip,
+                MsgGuardar = itemSeleccionado2.MsgGuardar,
+                MsgEliminar = itemSeleccionado2.MsgEliminar,
+                PreguntaEliminar = itemSeleccionado2.PreguntaEliminar,
+                idOrigen = int.Parse(selectedIdOrigen),
+                idEstatus = int.Parse(selectedIdEstatus),
+                Estatus = itemSeleccionado2.Estatus,
+                Clase = itemSeleccionado2.Clase,
+                urlMovil = itemSeleccionado2.urlMovil,
+
+                R = new
+                {
+                    modulo = AppState.CurrentPage,
+                    metodos = "Guardar",
+                    Token = AppState.SysToken
+                }
+            };
+
+            var clientHandler = new GetClient
+            {
+                R = new cResul
+                {
+                    metodos = "obtGetClient",
+                    Token = AppState.SysToken,
+                    modulo = "Usuarios"
+                }
+            }.GetClientConfigured();
+
+            var response = await clientHandler.PostAsJsonAsync("WebServices/Pantallas", request);
+            if (response.IsSuccessStatusCode)
+            {
+                var result = await response.Content.ReadFromJsonAsync<dynamic>();
+                SetTemporaryMessage($"Éxito: Se guardo la pantalla", "alert-success");
+                editarPermisos = false;
+                editar = true;
+                await CargarTablaPantallas();
+            }
+            else
+            {
+                SetTemporaryMessage($"Error: no se pudo actualizar panatalla", "alert-danger");
+            }
+        }
+        catch (Exception ex)
+        {
+            SetTemporaryMessage($"Error: {ex.Message}", "alert-danger");
+        }
+    }
+
+    private async Task CargarTablaPantallas()
+    {
+        isLoading = true;
+        try
+        {
+            var clientHandler = new GetClient
+            {
+                R = new cResul
+                {
+                    metodos = "obtGetClient",
+                    Token = "tu_token_si_es_necesario",
+                    modulo = "Usuarios"
+                }
+            }.GetClientConfigured();
+
+            var request = new
+            {
+                R = new
+                {
+                    modulo = AppState.CurrentPage,
+                    metodos = "obtenerPan",
+                    Token = AppState.SysToken
+                }
+            };
+
+            var response = await clientHandler.PostAsJsonAsync("WebServices/Pantallas", request);
+
+            if (response.IsSuccessStatusCode)
+            {
+                var responseData = await response.Content.ReadFromJsonAsync<ResponseModel>();
+
+                var menuData = responseData.Menu ?? responseData.Menu2 ?? new List<vwPantallas>();
+                elementosTabla = menuData;
+
+                var principales = menuData.Where(p => p.idOrigen == 0 || p.idOrigen == null).ToList();
+
+                menusAgrupados = principales.Select(p => new MenuGrupo
+                {
+                    Principal = p,
+                    SubMenus = menuData.Where(s => s.idOrigen == p.idPantalla).ToList()
+                }).ToList();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al cargar pantallas: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private async Task EditarItem(int idPantalla)
+    {
+        try
+        {
+            editar = false;
+            editarPermisos = false;
+            formulario = true;
+
+            itemSeleccionado = elementosTabla.FirstOrDefault(x => x.idPantalla == idPantalla);
+            itemSeleccionado2 = new vwPantallas
+            {
+                Pantalla = itemSeleccionado.Pantalla,
+                idPantalla = itemSeleccionado.idPantalla,
+                Descripcion = itemSeleccionado.Descripcion,
+                Orden = itemSeleccionado.Orden,
+                url = itemSeleccionado.url,
+                ToolTip = itemSeleccionado.ToolTip,
+                MsgGuardar = itemSeleccionado.MsgGuardar,
+                MsgEliminar = itemSeleccionado.MsgEliminar,
+                PreguntaEliminar = itemSeleccionado.PreguntaEliminar,
+                idOrigen = itemSeleccionado.idOrigen,
+                idEstatus = itemSeleccionado.idEstatus,
+                Estatus = itemSeleccionado.Estatus,
+                Clase = itemSeleccionado.Clase,
+                urlMovil = itemSeleccionado.urlMovil,
+            };
+            selectedIdEstatus = itemSeleccionado2.idEstatus.ToString();
+            selectedIdOrigen = itemSeleccionado2.idOrigen.ToString();
+            if (selectedIdEstatus != null)
+                await selectedIdEstatusC.SetSelectedValue(selectedIdEstatus);
+            if (selectedIdOrigen != null)
+                await selectedIdOrigenC.SetSelectedValue(selectedIdOrigen);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error en EditarItem: {ex.Message}");
+        }
+        finally
+        {
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+    #endregion
+
+    #region Métodos de Gestión de Permisos
+    private async Task HandlePermissionChange(ChangeEventArgs e, Rol item)
+    {
+        var isChecked = (bool)e.Value;
+        item.PermisoActivo = isChecked;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task guardarPermisos()
+    {
+        try
+        {
+            if (itemSeleccionado2 == null || itemSeleccionado2.idPantalla <= 0)
+            {
+                SetTemporaryMessage("No se ha seleccionado una pantalla válida", "alert-danger");
+                return;
+            }
+
+            var permisos = new List<vwPantallas>();
+
+            foreach (var rol in pantallaR)
+            {
+                permisos.Add(new vwPantallas
+                {
+                    idRol = rol.idRol,
+                    Estatusi = rol.PermisoActivo ? 1 : 0,
+                    idPantalla = itemSeleccionado2.idPantalla
+                });
+            }
+
+            var request = new
+            {
+                idPantalla = itemSeleccionado2.idPantalla,
+                Permisos = permisos,
+                R = new
+                {
+                    modulo = AppState.CurrentPage,
+                    metodos = "GuardarPermisos",
+                    Token = AppState.SysToken
+                }
+            };
+
+            var clientHandler = new GetClient
+            {
+                R = new cResul
+                {
+                    metodos = "obtGetClient",
+                    Token = AppState.SysToken,
+                    modulo = "Usuarios"
+                }
+            }.GetClientConfigured();
+
+            var response = await clientHandler.PostAsJsonAsync("WebServices/Pantallas", request);
+
+            if (response.IsSuccessStatusCode)
+            {
+                var result = await response.Content.ReadFromJsonAsync<dynamic>();
+                SetTemporaryMessage($"Éxito: Se guardaron los permisos para la pantalla", "alert-success");
+                editarPermisos = false;
+                editar = true;
+                await CargarTablaPantallas();
+            }
+            else
+            {
+                SetTemporaryMessage($"Error: no se pudieron guardar permisos", "alert-danger");
+            }
+        }
+        catch (Exception ex)
+        {
+            SetTemporaryMessage($"Error: {ex.Message}", "alert-danger");
+        }
+    }
+
+    private async Task EditarPermisos(int idPantalla)
+    {
+        try
+        {
+            editarPermisos = true;
+            editar = false;
+            formulario = false;
+
+            itemSeleccionado2 = new vwPantallas
+            {
+                idPantalla = idPantalla
+            };
+
+            var clientHandler = new GetClient
+            {
+                R = new cResul
+                {
+                    metodos = "obtGetClient",
+                    Token = "tu_token_si_es_necesario",
+                    modulo = "Usuarios"
+                }
+            }.GetClientConfigured();
+
+            var request = new
+            {
+                idPantalla = idPantalla,
+                R = new
+                {
+                    modulo = AppState.CurrentPage,
+                    metodos = "Cargar",
+                    Token = AppState.SysToken
+                }
+            };
+
+            var response = await clientHandler.PostAsJsonAsync("WebServices/Pantallas", request);
+            if (response.IsSuccessStatusCode)
+            {
+                Console.WriteLine("Error al cargar permisos" + response.Content);
+                var nuevoPan = await response.Content.ReadFromJsonAsync<Rol>();
+                pantallaR = nuevoPan.Permisos;
+            }
+            else
+            {
+                pantallaR = new List<Rol>();
+                Console.WriteLine("Error al cargar permisos");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al editar permisos: {ex.Message}");
+        }
+        finally
+        {
+            StateHasChanged();
+        }
+    }
+    #endregion
+
+    #region Métodos de Interfaz y Utilidades
+    private void cancelar()
+    {
+        editarPermisos = false;
+        editar = true;
+        formulario = false;
+        itemSeleccionado = null;
+        itemSeleccionado2 = new vwPantallas();
+        StateHasChanged();
+    }
+
+    private bool IsSubmenuHidden(int parentId)
+    {
+        return hiddenSubmenus.Contains(parentId);
+    }
+
+    private void ToggleSubmenu(int parentId)
+    {
+        if (hiddenSubmenus.Contains(parentId))
+        {
+            hiddenSubmenus.Remove(parentId);
+        }
+        else
+        {
+            hiddenSubmenus.Add(parentId);
+        }
+        StateHasChanged();
+    }
+    #endregion
+
+    #region Métodos de Iconos SVG
+    
+    #endregion
+
+    #region Clases de Soporte
+    public class ResponseModel
+    {
+        public List<vwPantallas> Menu { get; set; }
+        public List<vwPantallas> Menu2 { get; set; }
+    }
+
+    public class MenuGrupo
+    {
+        public vwPantallas Principal { get; set; }
+        public List<vwPantallas> SubMenus { get; set; } = new List<vwPantallas>();
+    }
+    #endregion
+}
+@* @code {
+    // Variables para controlar submenús ocultos
+    private List<int> hiddenSubmenus = new List<int>();
+    public bool editar = true;
+    public bool editarPermisos = false;
+    public bool formulario = false;
+    private SmartSelect selectedIdEstatusC, selectedIdOrigenC;
+
+
+    private Timer messageTimer;
+    private int messageTimeout = 5000;
+    private string recoveryMessage = string.Empty;
+    private string recoveryMessageClass = "alert-info";
+
+    private async void ClearMessage()
+    {
+        await InvokeAsync(() =>
+        {
+            recoveryMessage = string.Empty;
+            recoveryMessageClass = string.Empty;
+            StateHasChanged();
+        });
+    }
+
+
+    private string _selectedUsuario, _selectedIdEstatus, _selectedIdOrigen;
+
+    private string selectedIdEstatus
+    {
+        get => _selectedIdEstatus;
+        set
+        {
+            if (_selectedIdEstatus != value)
+            {
+                _selectedIdEstatus = value;
+                if (itemSeleccionado2 != null && int.TryParse(value, out int idEstatus))
+                {
+                    itemSeleccionado2.idEstatus = idEstatus;
+                }
+            }
+        }
+    }
+
+    public async Task CrearPantalla()
+    {
+        editar = false;
+        editarPermisos = false;
+        formulario = true;
+         itemSeleccionado2 = new vwPantallas
+            {
+                Pantalla = string.Empty,
+                idPantalla = 0,
+                Descripcion = string.Empty,
+                Orden= 0,
+                url=string.Empty,
+                ToolTip=string.Empty,
+                MsgGuardar=string.Empty,
+                MsgEliminar=string.Empty,
+                PreguntaEliminar=string.Empty,
+                idEstatus= 0,
+                idOrigen= 0,
+                Estatus=string.Empty,
+                Clase=string.Empty,
+                urlMovil=string.Empty,
+            };
+            selectedIdEstatus = "";
+            selectedIdOrigen = "";
+            StateHasChanged();
+        
+    }
+    private async Task HandlePermissionChange(ChangeEventArgs e, Rol item)
+    {
+        var isChecked = (bool)e.Value;
+        item.PermisoActivo = isChecked; // Esto actualiza TienePermiso a 1 o 0 automáticamente
+
+        await InvokeAsync(StateHasChanged);
+
+        // Opcional: Guardar cambios en el servidor
+        // await GuardarPermisos(item);
+    }
+
+    private string selectedIdOrigen
+    {
+        get => _selectedIdOrigen;
+        set
+        {
+            if (_selectedIdOrigen != value)
+            {
+                _selectedIdOrigen = value;
+                if (itemSeleccionado2 != null && int.TryParse(value, out int idOrigen))
+                {
+                    itemSeleccionado2.idOrigen = idOrigen;
+                }
+            }
+        }
+    }
+
+
+
+    private bool IsSubmenuHidden(int parentId)
+    {
+        return hiddenSubmenus.Contains(parentId);
+    }
+
+    private void ToggleSubmenu(int parentId)
+    {
+        if (hiddenSubmenus.Contains(parentId))
+        {
+            hiddenSubmenus.Remove(parentId);
+        }
+        else
+        {
+            hiddenSubmenus.Add(parentId);
+        }
+        StateHasChanged();
+    }
+    private string GetArchiveIcon()
+    {
+        return @"<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='currentColor' class='bi bi-window-fullscreen' viewBox='0 0 16 16'>
+    <path d = 'M3 3.5a.5.5 0 1 1-1 0 .5.5 0 0 1 1 0m1.5 0a.5.5 0 1 1-1 0 .5.5 0 0 1 1 0m1 .5a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1'/>
+    <path d = 'M.5 1a.5.5 0 0 0-.5.5v13a.5.5 0 0 0 .5.5h15a.5.5 0 0 0 .5-.5v-13a.5.5 0 0 0-.5-.5zM1 5V2h14v3zm0 1h14v8H1z' />
+    </svg > ";
+    }
+
+    private string iLogin()
+    {
+        return @"<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='currentColor' class='bi bi-door-open' viewBox='0 0 16 16'>
+        <path d = 'M8.5 10c-.276 0-.5-.448-.5-1s.224-1 .5-1 .5.448.5 1-.224 1-.5 1' />
+        <path d = 'M10.828.122A.5.5 0 0 1 11 .5V1h.5A1.5 1.5 0 0 1 13 2.5V15h1.5a.5.5 0 0 1 0 1h-13a.5.5 0 0 1 0-1H3V1.5a.5.5 0 0 1 .43-.495l7-1a.5.5 0 0 1 .398.117M11.5 2H11v13h1V2.5a.5.5 0 0 0-.5-.5M4 1.934V15h6V1.077z' />
+        </svg> ";
+    }
+    private string getInputT()
+    {
+        return @"<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='currentColor' class='bi bi-input-cursor' viewBox='0 0 16 16'>
+         <path d = 'M10 5h4a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1h-4v1h4a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-4zM6 5V4H2a2 2 0 0 0-2 2v4a2 2 0 0 0 2 2h4v-1H2a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z' />
+         <path fill-rule='evenodd' d='M8 1a.5.5 0 0 1 .5.5v13a.5.5 0 0 1-1 0v-13A.5.5 0 0 1 8 1'/>
+         </svg>";
+    }
+    public string getAple()
+    {
+        return @"<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='currentColor' class='bi bi-tags' viewBox='0 0 16 16'>
+            <path d = 'M3 2v4.586l7 7L14.586 9l-7-7zM2 2a1 1 0 0 1 1-1h4.586a1 1 0 0 1 .707.293l7 7a1 1 0 0 1 0 1.414l-4.586 4.586a1 1 0 0 1-1.414 0l-7-7A1 1 0 0 1 2 6.586z' />
+            <path d = 'M5.5 5a.5.5 0 1 1 0-1 .5.5 0 0 1 0 1m0 1a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3M1 7.086a1 1 0 0 0 .293.707L8.75 15.25l-.043.043a1 1 0 0 1-1.414 0l-7-7A1 1 0 0 1 0 7.586V3a1 1 0 0 1 1-1z' />
+            </svg >";
+    }
+    public string bitacora()
+    {
+        return @"<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='currentColor' class='bi bi-clipboard' viewBox='0 0 16 16'>
+        <path d = 'M4 1.5H3a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3.5a2 2 0 0 0-2-2h-1v1h1a1 1 0 0 1 1 1V14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1h1z' />
+        <path d = 'M9.5 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5zm-3-1A1.5 1.5 0 0 0 5 1.5v1A1.5 1.5 0 0 0 6.5 4h3A1.5 1.5 0 0 0 11 2.5v-1A1.5 1.5 0 0 0 9.5 0z' />
+        </svg > ";
+    }
+    public string iNosotros()
+    {
+        return @"<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='currentColor' class='bi bi-building' viewBox='0 0 16 16'>
+            <path d = 'M4 2.5a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5zm3 0a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5zm3.5-.5a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5zM4 5.5a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5zM7.5 5a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5zm2.5.5a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5zM4.5 8a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5zm2.5.5a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5zm3.5-.5a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5z' />
+            <path d = 'M2 1a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1zm11 0H3v14h3v-2.5a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 .5.5V15h3z' />
+            </svg> ";
+    }
+    public string iServicios()
+    {
+        return @"<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='currentColor' class='bi bi-building-gear' viewBox='0 0 16 16'>
+            <path d = 'M2 1a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6.5a.5.5 0 0 1-1 0V1H3v14h3v-2.5a.5.5 0 0 1 .5-.5H8v4H3a1 1 0 0 1-1-1z' />
+            <path d = 'M4.5 2a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5zm3 0a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5zm3 0a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5zm-6 3a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5zm3 0a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5zm3 0a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5zm-6 3a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5zm3 0a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5zm4.386 1.46c.18-.613 1.048-.613 1.229 0l.043.148a.64.64 0 0 0 .921.382l.136-.074c.561-.306 1.175.308.87.869l-.075.136a.64.64 0 0 0 .382.92l.149.045c.612.18.612 1.048 0 1.229l-.15.043a.64.64 0 0 0-.38.921l.074.136c.305.561-.309 1.175-.87.87l-.136-.075a.64.64 0 0 0-.92.382l-.045.149c-.18.612-1.048.612-1.229 0l-.043-.15a.64.64 0 0 0-.921-.38l-.136.074c-.561.305-1.175-.309-.87-.87l.075-.136a.64.64 0 0 0-.382-.92l-.148-.045c-.613-.18-.613-1.048 0-1.229l.148-.043a.64.64 0 0 0 .382-.921l-.074-.136c-.306-.561.308-1.175.869-.87l.136.075a.64.64 0 0 0 .92-.382zM14 12.5a1.5 1.5 0 1 0-3 0 1.5 1.5 0 0 0 3 0' />
+            </svg > ";
+    }
+
+    public string iConfiguracio()
+    {
+        return @"<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='currentColor' class='bi bi-gear' viewBox='0 0 16 16'>
+            <path d = 'M8 4.754a3.246 3.246 0 1 0 0 6.492 3.246 3.246 0 0 0 0-6.492M5.754 8a2.246 2.246 0 1 1 4.492 0 2.246 2.246 0 0 1-4.492 0' />
+            <path d = 'M9.796 1.343c-.527-1.79-3.065-1.79-3.592 0l-.094.319a.873.873 0 0 1-1.255.52l-.292-.16c-1.64-.892-3.433.902-2.54 2.541l.159.292a.873.873 0 0 1-.52 1.255l-.319.094c-1.79.527-1.79 3.065 0 3.592l.319.094a.873.873 0 0 1 .52 1.255l-.16.292c-.892 1.64.901 3.434 2.541 2.54l.292-.159a.873.873 0 0 1 1.255.52l.094.319c.527 1.79 3.065 1.79 3.592 0l.094-.319a.873.873 0 0 1 1.255-.52l.292.16c1.64.893 3.434-.902 2.54-2.541l-.159-.292a.873.873 0 0 1 .52-1.255l.319-.094c1.79-.527 1.79-3.065 0-3.592l-.319-.094a.873.873 0 0 1-.52-1.255l.16-.292c.893-1.64-.902-3.433-2.541-2.54l-.292.159a.873.873 0 0 1-1.255-.52zm-2.633.283c.246-.835 1.428-.835 1.674 0l.094.319a1.873 1.873 0 0 0 2.693 1.115l.291-.16c.764-.415 1.6.42 1.184 1.185l-.159.292a1.873 1.873 0 0 0 1.116 2.692l.318.094c.835.246.835 1.428 0 1.674l-.319.094a1.873 1.873 0 0 0-1.115 2.693l.16.291c.415.764-.42 1.6-1.185 1.184l-.291-.159a1.873 1.873 0 0 0-2.693 1.116l-.094.318c-.246.835-1.428.835-1.674 0l-.094-.319a1.873 1.873 0 0 0-2.692-1.115l-.292.16c-.764.415-1.6-.42-1.184-1.185l.159-.291A1.873 1.873 0 0 0 1.945 8.93l-.319-.094c-.835-.246-.835-1.428 0-1.674l.319-.094A1.873 1.873 0 0 0 3.06 4.377l-.16-.292c-.415-.764.42-1.6 1.185-1.184l.292.159a1.873 1.873 0 0 0 2.692-1.115z' />
+            </svg > ";
+    }
+
+
+    private string obtenerIconos(string status)
+    {
+        return status switch
+        {
+            "Usuario" => GetSvgIcon("M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6m2-3a2 2 0 1 1-4 0 2 2 0 0 1 4 0m4 8c0 1-1 1-1 1H3s-1 0-1-1 1-4 6-4 6 3 6 4m-1-.004c-.001-.246-.154-.986-.832-1.664C11.516 10.68 10.289 10 8 10s-3.516.68-4.168 1.332c-.678.678-.83 1.418-.832 1.664z"),
+            "Venta" => GetSvgIcon("M2.97 1.35A1 1 0 0 1 3.73 1h8.54a1 1 0 0 1 .76.35l2.609 3.044A1.5 1.5 0 0 1 16 5.37v.255a2.375 2.375 0 0 1-4.25 1.458A2.37 2.37 0 0 1 9.875 8 2.37 2.37 0 0 1 8 7.083 2.37 2.37 0 0 1 6.125 8a2.37 2.37 0 0 1-1.875-.917A2.375 2.375 0 0 1 0 5.625V5.37a1.5 1.5 0 0 1 .361-.976zm1.78 4.275a1.375 1.375 0 0 0 2.75 0 .5.5 0 0 1 1 0 1.375 1.375 0 0 0 2.75 0 .5.5 0 0 1 1 0 1.375 1.375 0 1 0 2.75 0V5.37a.5.5 0 0 0-.12-.325L12.27 2H3.73L1.12 5.045A.5.5 0 0 0 1 5.37v.255a1.375 1.375 0 0 0 2.75 0 .5.5 0 0 1 1 0M1.5 8.5A.5.5 0 0 1 2 9v6h1v-5a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v5h6V9a.5.5 0 0 1 1 0v6h.5a.5.5 0 0 1 0 1H.5a.5.5 0 0 1 0-1H1V9a.5.5 0 0 1 .5-.5M4 15h3v-5H4zm5-5a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1zm3 0h-2v3h2z"),
+            "Proveedor" => GetSvgIcon("M8 1a2.5 2.5 0 0 1 2.5 2.5V4h-5v-.5A2.5 2.5 0 0 1 8 1m3.5 3v-.5a3.5 3.5 0 1 0-7 0V4H1v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V4zM2 5h12v9a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1z"),
+            "Pantalla" => GetArchiveIcon(),
+            "Campo" => getInputT(),
+            "Producto"=>getAple(),
+            "Catalogo" => GetSvgIcon("M1 2.828c.885-.37 2.154-.769 3.388-.893 1.33-.134 2.458.063 3.112.752v9.746c-.935-.53-2.12-.603-3.213-.493-1.18.12-2.37.461-3.287.811zm7.5-.141c.654-.689 1.782-.886 3.112-.752 1.234.124 2.503.523 3.388.893v9.923c-.918-.35-2.107-.692-3.287-.81-1.094-.111-2.278-.039-3.213.492zM8 1.783C7.015.936 5.587.81 4.287.94c-1.514.153-3.042.672-3.994 1.105A.5.5 0 0 0 0 2.5v11a.5.5 0 0 0 .707.455c.882-.4 2.303-.881 3.68-1.02 1.409-.142 2.59.087 3.223.877a.5.5 0 0 0 .78 0c.633-.79 1.814-1.019 3.222-.877 1.378.139 2.8.62 3.681 1.02A.5.5 0 0 0 16 13.5v-11a.5.5 0 0 0-.293-.455c-.952-.433-2.48-.952-3.994-1.105C10.413.809 8.985.936 8 1.783"),
+            "Bitacora" => bitacora(),
+            "Login" => iLogin(),
+            "Inicio" => GetSvgIcon("M8.354 1.146a.5.5 0 0 0-.708 0l-6 6A.5.5 0 0 0 1.5 7.5v7a.5.5 0 0 0 .5.5h4.5a.5.5 0 0 0 .5-.5v-4h2v4a.5.5 0 0 0 .5.5H14a.5.5 0 0 0 .5-.5v-7a.5.5 0 0 0-.146-.354L13 5.793V2.5a.5.5 0 0 0-.5-.5h-1a.5.5 0 0 0-.5.5v1.293zM2.5 14V7.707l5.5-5.5 5.5 5.5V14H10v-4a.5.5 0 0 0-.5-.5h-3a.5.5 0 0 0-.5.5v4z"),
+            "Nosostros" => iNosotros(),
+            "Servicios" => iServicios(),
+            "Administración" => GetSvgIcon("M0 2a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1v7.5a2.5 2.5 0 0 1-2.5 2.5h-9A2.5 2.5 0 0 1 1 12.5V5a1 1 0 0 1-1-1zm2 3v7.5A1.5 1.5 0 0 0 3.5 14h9a1.5 1.5 0 0 0 1.5-1.5V5zm13-3H1v2h14zM5 7.5a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5"),
+            "Configuración" => iConfiguracio(),
+            _ => "bg-secondary"
+        };
+    }
+    private void cancelar()
+    {
+        editarPermisos = false;
+        editar = true; // Volver a la vista principal de edición}
+        formulario = false;
+        itemSeleccionado = null;
+        itemSeleccionado2 = new vwPantallas();
+        StateHasChanged();
+    }
+    private string GetSvgIcon(string path1, string path2 = null, string path3 = null)
+    {
+        var svg = $@"<svg class='svg-icon' viewBox='0 0 20 20'>
+            <path d='{path1}' />";
+
+        if (!string.IsNullOrEmpty(path2))
+        {
+            svg += $@"<path d='{path2}' />";
+        }
+        if (!string.IsNullOrEmpty(path3))
+        {
+            svg += $@"<path d='{path3}' />";
+        }
+
+        svg += "</svg>";
+        return svg;
+    }
+    private bool isLoading = true;
+    public List<vwPantallas> elementosTabla { get; set; } = new List<vwPantallas>();
+    private List<MenuGrupo> menusAgrupados = new List<MenuGrupo>();
+    private vwPantallas itemSeleccionado;
+    private vwPantallas itemSeleccionado2 = new();
+    private List<Rol> pantallaR = new List<Rol>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Inicializar itemSeleccionado2
+        itemSeleccionado2 = new vwPantallas();
+        AppState.CurrentPage = "Pantalla";
+        // Inicializar el timer para mensajes
+        messageTimer = new Timer(messageTimeout);
+        messageTimer.Elapsed += (sender, e) => ClearMessage();
+        messageTimer.AutoReset = false;
+
+        await CargarTablaPantallas();
+    }
+
+
+    private async Task GuardarPantalla()
+    {
+        try
+        {
+            var request = new
+            {
+                    Pantalla = itemSeleccionado2.Pantalla,
+                    idPantalla = itemSeleccionado2.idPantalla,
+                    Descripcion = itemSeleccionado2.Descripcion,
+                    Orden = itemSeleccionado2.Orden,
+                    url = itemSeleccionado2.url,
+                    ToolTip = itemSeleccionado2.ToolTip,
+                    MsgGuardar = itemSeleccionado2.MsgGuardar,
+                    MsgEliminar = itemSeleccionado2.MsgEliminar,
+                    PreguntaEliminar = itemSeleccionado2.PreguntaEliminar,
+                    idOrigen = int.Parse(selectedIdOrigen),
+                    idEstatus = int.Parse(selectedIdEstatus),
+                    Estatus = itemSeleccionado2.Estatus,
+                    Clase = itemSeleccionado2.Clase,
+                    urlMovil = itemSeleccionado2.urlMovil,
+
+                R = new
+                {
+                    modulo = AppState.CurrentPage,
+                    metodos = "Guardar",
+                    Token = AppState.SysToken
+                }
+            };
+
+            // 3. Configurar el cliente HTTP
+            var clientHandler = new GetClient
+            {
+                R = new cResul
+                {
+                    metodos = "obtGetClient",
+                    Token = AppState.SysToken,
+                    modulo = "Usuarios"
+                }
+            }.GetClientConfigured();
+
+            // 4. Enviar la solicitud
+            var response = await clientHandler.PostAsJsonAsync("WebServices/Pantallas", request);
+            if (response.IsSuccessStatusCode)
+            {
+                var result = await response.Content.ReadFromJsonAsync<dynamic>();
+                
+                // Mostrar alerta (adaptado para MAUI)
+                 SetTemporaryMessage($"Éxito: Se guardo la pantalla", "alert-success");
+                
+                // Volver a la vista anterior
+                editarPermisos = false;
+                editar = true;
+                
+                // Recargar los datos si es necesario
+                await CargarTablaPantallas();
+            }
+            else
+            {
+               SetTemporaryMessage($"Error: no se pudo actualizar panatalla", "alert-danger");
+            }
+
+        }catch(Exception ex)
+        {
+            SetTemporaryMessage($"Error: {ex.Message}", "alert-danger");
+        }
+    }
+
+    private async Task guardarPermisos()
+    {
+        try
+        {
+             if (itemSeleccionado2 == null || itemSeleccionado2.idPantalla <= 0)
+            {
+                SetTemporaryMessage("No se ha seleccionado una pantalla válida", "alert-danger");
+                return;
+            }
+            // 1. Recopilar los permisos modificados
+            var permisos = new List<vwPantallas>();
+            
+            foreach (var rol in pantallaR)
+            {
+                permisos.Add(new vwPantallas
+                {
+                    idRol = rol.idRol,
+                    Estatusi = rol.PermisoActivo ? 1 : 0,
+                    idPantalla = itemSeleccionado2.idPantalla
+                });
+            }
+
+            // 2. Crear el objeto de solicitud
+            var request = new
+            {
+                idPantalla = itemSeleccionado2.idPantalla,
+                Permisos = permisos,
+                R = new
+                {
+                    modulo = AppState.CurrentPage,
+                    metodos = "GuardarPermisos",
+                    Token = AppState.SysToken
+                }
+            };
+
+            // 3. Configurar el cliente HTTP
+            var clientHandler = new GetClient
+            {
+                R = new cResul
+                {
+                    metodos = "obtGetClient",
+                    Token = AppState.SysToken,
+                    modulo = "Usuarios"
+                }
+            }.GetClientConfigured();
+
+            // 4. Enviar la solicitud
+            var response = await clientHandler.PostAsJsonAsync("WebServices/Pantallas", request);
+
+            if (response.IsSuccessStatusCode)
+            {
+                var result = await response.Content.ReadFromJsonAsync<dynamic>();
+                
+                // Mostrar alerta (adaptado para MAUI)
+                 SetTemporaryMessage($"Éxito: Se guardaron los permisos para la pantalla", "alert-success");
+                
+                // Volver a la vista anterior
+                editarPermisos = false;
+                editar = true;
+                
+                // Recargar los datos si es necesario
+                await CargarTablaPantallas();
+            }
+            else
+            {
+               SetTemporaryMessage($"Error: no se pudieron guardar permisos", "alert-danger");
+            }
+        }
+        catch (Exception ex)
+        {
+            SetTemporaryMessage($"Error: {ex.Message}", "alert-danger");
+        }
+    }
+    private void SetTemporaryMessage(string message, string messageClass)
+    {
+        recoveryMessage = message;
+        recoveryMessageClass = messageClass;
+        messageTimer.Stop();
+        messageTimer.Start();
+        StateHasChanged();
+    }
+    private async Task  EditarPermisos(int idPantalla)
+    {
+        try
+        {
+            editarPermisos = true;
+            editar = false;
+            formulario = false; // Asegúrate de que el formulario esté oculto al editar permisos
+
+            itemSeleccionado2 = new vwPantallas 
+            {
+                idPantalla = idPantalla
+            };  
+
+            // Cargar los permisos para esta pantalla
+            // await CargarPermisosPantalla(idPantalla);
+            var clientHandler = new GetClient
+                {
+                    R = new cResul
+                    {
+                        metodos = "obtGetClient",
+                        Token = "tu_token_si_es_necesario",
+                        modulo = "Usuarios"
+                    }
+                }.GetClientConfigured();
+
+            var request = new
+            {
+                idPantalla = idPantalla,
+                R = new
+                {
+                    modulo = AppState.CurrentPage,
+                    metodos = "Cargar",
+                    Token = AppState.SysToken
+                }
+            };
+
+            var response = await clientHandler.PostAsJsonAsync("WebServices/Pantallas", request);
+            if (response.IsSuccessStatusCode)
+            {
+                Console.WriteLine("Error al cargar permisos"+ response.Content);
+                var nuevoPan = await response.Content.ReadFromJsonAsync<Rol>();
+                pantallaR = nuevoPan.Permisos; // Asigna los permisos obtenidos a la lista pantallaR
+            }
+            else
+            {
+                pantallaR = new List<Rol>();
+                // Opcional: Mostrar mensaje de error
+                Console.WriteLine("Error al cargar permisos");
+            }
+        }catch(Exception ex)
+        {
+            Console.WriteLine($"Error al editar permisos: {ex.Message}");
+        }
+        finally
+        {
+            // Asegúrate de que el estado se actualice después de cargar los permisos
+            StateHasChanged();
+        }
+
+
+    }
+
+    private async Task CargarTablaPantallas()
+    {
+        isLoading = true;
+        try
+        {
+            var clientHandler = new GetClient
+            {
+                R = new cResul
+                {
+                    metodos = "obtGetClient",
+                    Token = "tu_token_si_es_necesario",
+                    modulo = "Usuarios"
+                }
+            }.GetClientConfigured();
+
+            var request = new
+            {
+                R = new
+                {
+                    modulo = AppState.CurrentPage,
+                    metodos = "obtenerPan",
+                    Token = AppState.SysToken
+                }
+            };
+
+            var response = await clientHandler.PostAsJsonAsync("WebServices/Pantallas", request);
+
+            if (response.IsSuccessStatusCode)
+            {
+                var responseData = await response.Content.ReadFromJsonAsync<ResponseModel>();
+
+                // Obtener los datos del menú (Menu o Menu2)
+                var menuData = responseData.Menu ?? responseData.Menu2 ?? new List<vwPantallas>();
+                elementosTabla = menuData;
+
+                // Agrupar menús principales con sus submenús
+                var principales = menuData.Where(p => p.idOrigen == 0 || p.idOrigen == null).ToList();
+
+                menusAgrupados = principales.Select(p => new MenuGrupo
+                {
+                    Principal = p,
+                    SubMenus = menuData.Where(s => s.idOrigen == p.idPantalla).ToList()
+                }).ToList();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al cargar pantallas: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private async Task EditarItem(int idPantalla)
+
+    {
+        try
+        {
+            editar = false;
+            editarPermisos = false;
+            formulario = true;  
+
+            itemSeleccionado = elementosTabla.FirstOrDefault(x => x.idPantalla == idPantalla);
+            itemSeleccionado2 = new vwPantallas
+                {
+                    Pantalla = itemSeleccionado.Pantalla,
+                    idPantalla = itemSeleccionado.idPantalla,
+                    Descripcion = itemSeleccionado.Descripcion,
+                    Orden = itemSeleccionado.Orden,
+                    url = itemSeleccionado.url,
+                    ToolTip = itemSeleccionado.ToolTip,
+                    MsgGuardar = itemSeleccionado.MsgGuardar,
+                    MsgEliminar = itemSeleccionado.MsgEliminar,
+                    PreguntaEliminar = itemSeleccionado.PreguntaEliminar,
+                    idOrigen = itemSeleccionado.idOrigen,
+                    idEstatus = itemSeleccionado.idEstatus,
+                    Estatus = itemSeleccionado.Estatus,
+                    Clase = itemSeleccionado.Clase,
+                    urlMovil = itemSeleccionado.urlMovil,
+                };
+            selectedIdEstatus = itemSeleccionado2.idEstatus.ToString();
+            selectedIdOrigen = itemSeleccionado2.idOrigen.ToString();
+             if (selectedIdEstatus != null)
+                        await selectedIdEstatusC.SetSelectedValue(selectedIdEstatus);
+             if (selectedIdOrigen != null)
+                        await selectedIdOrigenC.SetSelectedValue(selectedIdOrigen);
+       
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error en EditarItem: {ex.Message}");
+            // Opcional: Mostrar mensaje al usuario
+        }
+        finally
+        {
+            await InvokeAsync(StateHasChanged);
+        }
+        
+    }
+    
+    // Clases para manejar la respuesta y agrupar los menús
+    public class ResponseModel
+    {
+        public List<vwPantallas> Menu { get; set; }
+        public List<vwPantallas> Menu2 { get; set; }
+    }
+
+    public class MenuGrupo
+    {
+        public vwPantallas Principal { get; set; }
+        public List<vwPantallas> SubMenus { get; set; } = new List<vwPantallas>();
+    }
+} *@
