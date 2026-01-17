@@ -6,6 +6,9 @@ Compatible con **Android** y **iOS**, esta aplicación extiende la funcionalidad
 
 ---
 
+![Logo del proyecto](images/hijos.jpg)
+
+
 ## 🧠 Descripción General
 
 La aplicación móvil permite el acceso a los procesos principales del sistema desde dispositivos móviles, manteniendo sincronización con la plataforma web.
