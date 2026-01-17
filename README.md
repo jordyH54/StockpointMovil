@@ -8,6 +8,7 @@ Compatible con **Android** y **iOS**, esta aplicación extiende la funcionalidad
 
 <!-- ![Imagen de hijos](images/hijos.jpeg) -->
 
+<!--<img src="images/hijos.jpeg" alt="Imagen de hijos" width="150"/>-->
 
 
 ## 🧠 Descripción General
