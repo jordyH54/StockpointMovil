@@ -18,7 +18,7 @@ La aplicación móvil permite el acceso a los procesos principales del sistema d
 El mismo núcleo del sistema fue aplicado en distintos dominios:
 
 * Punto de Venta
-* Historias Clínicas
+* Historial Clínicos
 * Aseguradora (Pólizas)
 
 ---
