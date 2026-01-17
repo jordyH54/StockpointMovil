@@ -70,7 +70,10 @@ Esta aplicación forma parte del mismo proyecto que:
 ## ⚙️ Pruebas y resultados
 # Módulo de Usuarios
 El módulo de autenticación, ha demostrado que el sistema permite el inicio de sesión seguro solo a usuarios con credenciales válidas y protege correctamente contra accesos no autorizados.
-  
+
+<p align="center">
+  <img src="images/pantallauno.png" alt="Imagen de hijos" width="250"/>
+</p>
 
 ---
 
