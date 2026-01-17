@@ -6,7 +6,7 @@ Compatible con **Android** y **iOS**, esta aplicación extiende la funcionalidad
 
 ---
 
-![Logo del proyecto](images/hijos.jpg)
+![prueba](images/hijos.jepg)
 
 
 ## 🧠 Descripción General
