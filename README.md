@@ -6,7 +6,8 @@ Compatible con **Android** y **iOS**, esta aplicación extiende la funcionalidad
 
 ---
 
-![prueba](images/hijos.jepg)
+![Imagen de hijos](images/hijos.jpeg)
+
 
 
 ## 🧠 Descripción General
