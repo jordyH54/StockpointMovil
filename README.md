@@ -75,6 +75,39 @@ El módulo de autenticación, ha demostrado que el sistema permite el inicio de 
   <img src="images/pantallauno.png" alt="Imagen de hijos" width="250"/>
 </p>
 
+La funcionalidad de recuperación de contraseña permite a los usuarios restablecer su acceso de forma segura en caso de olvido, con un flujo estable y protegido contra posibles vulnerabilidades
+
+<p align="center">
+  <img src="images/pantallados.png" alt="Imagen de hijos" width="380"/>
+</p>
+
+Los procesos de asignación de roles aseguran que el sistema otorga correctamente los permisos correspondientes a cada perfil 
+(público, web master, administrador, responsable de piso o vendedor), garantizando un control preciso sobre las acciones de los usuarios y contribuyendo a la seguridad y correcto funcionamiento de la plataforma.
+
+<p align="center">
+  <img src="images/pantallatres.png" alt="Imagen de hijos" width="380"/>
+</p>
+
+# Módulo de Ventas e inventario
+El módulo de registro de métodos de pago identifica y almacena de manera precisa el tipo de transacción (efectivo, tarjeta, transferencia u otro medio disponible). Cada operación queda correctamente registrada, lo que facilita la conciliación de ingresos, el control financiero y la generación de reportes detallados por tipo de pago, garantizando un funcionamiento estable, confiable y eficiente en la gestión de las transacciones.
+<p align="center">
+  <img src="images/pantallacuatro.png" alt="Imagen de hijos" width="280"/>
+    <img src="images/cuatro.png" alt="Imagen de hijos" width="280"/>
+</p>
+
+La integración con el inventario permite que cada venta registrada, independientemente del método de pago, actualice automáticamente los niveles de stock. Esta conexión garantiza información en tiempo real, evita desfases y optimiza la gestión de los productos disponibles.
+
+<p align="center">
+  <img src="images/pantallacinco.png" alt="Imagen de hijos" width="380"/>
+</p>
+
+# Módulo de Reportes
+El módulo de bitácora de actividades permite visualizar el estado del sistema y registrar de forma detallada los eventos más relevantes. Registra correctamente los intentos de acceso, especialmente los realizados por usuarios sin los permisos correspondientes, así como las actualizaciones de roles y permisos asignados. También captura errores del sistema, fallos en los procesos y todas las acciones de los usuarios dentro de la plataforma, cumpliendo con los objetivos de trazabilidad y seguridad. El acceso a la bitácora está restringido al usuario con rol de Web Master, garantizando la confidencialidad e integridad de la información, y asegurando un funcionamiento estable que constituye una herramienta clave para el control interno del sistema.
+
+<p align="center">
+  <img src="images/pantallaseis.png" alt="Imagen de hijos" width="380"/>
+</p>
+
 ---
 
 ## 👨‍💻 Autores
