@@ -68,7 +68,7 @@ Esta aplicación forma parte del mismo proyecto que:
 * Reutilizable
 * Enfoque híbrido
 
-## ⚙️ Pruebas y resultados
+## ⚙️ Resultados
 # Módulo de Usuarios
 El módulo de autenticación, ha demostrado que el sistema permite el inicio de sesión seguro solo a usuarios con credenciales válidas y protege correctamente contra accesos no autorizados.
 
