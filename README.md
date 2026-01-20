@@ -20,7 +20,7 @@ Además, el núcleo del sistema ha sido adaptado para distintos dominios:
 
 * Punto de Venta
 * Historial Clínicos
-* Aseguradora (Pólizas)
+* Gestión de Pólizas para Aseguradora
 
 ---
 
