@@ -83,7 +83,24 @@ La funcionalidad de recuperación de contraseña permite a los usuarios restable
 </p>
 
 Los procesos de asignación de roles aseguran que el sistema otorga correctamente los permisos correspondientes a cada perfil 
-(público, web master, administrador, responsable de piso o vendedor), garantizando un control preciso sobre las acciones de los usuarios y contribuyendo a la seguridad y correcto funcionamiento de la plataforma.
+(Usuario público, Vendedor,Responsable de piso, Administrador , Web Master), garantizando un control preciso sobre las acciones de los usuarios y contribuyendo a la seguridad y correcto funcionamiento de la plataforma.
+
+**Perimisos de usuario**
+
+* **Usuario público:**
+Tiene acceso limitado al sistema, generalmente enfocado a la visualización de información básica sin necesidad de autenticación. No puede realizar modificaciones ni acceder a funciones administrativas.
+
+* **Vendedor:**
+Es responsable de las operaciones de venta dentro del sistema. Puede registrar ventas, seleccionar productos, aplicar métodos de pago y consultar información relacionada con sus transacciones. Su acceso está restringido a funciones operativas, sin permisos de configuración o administración general.
+
+* **Responsable de piso:**
+Supervisa las actividades de venta y el control de inventario. Puede consultar existencias, revisar movimientos de productos y apoyar en la gestión operativa del punto de venta. Su rol permite mayor acceso que el vendedor, pero sin llegar a funciones críticas del sistema.
+
+* **Administrador:**
+Cuenta con permisos amplios para gestionar el sistema. Puede administrar usuarios, productos, categorías, inventarios, métodos de pago y consultar reportes generales. Su función principal es asegurar el correcto funcionamiento y control de la plataforma.
+
+* **Web Master:**
+Tiene control total sobre la configuración del sistema web. Se encarga de la administración técnica, mantenimiento, configuración de catálogos, ajustes del sistema y gestión avanzada de usuarios y permisos.
 
 <p align="center">
   <img src="images/pantallatres.png" alt="Imagen de hijos" width="380"/>
