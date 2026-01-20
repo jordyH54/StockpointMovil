@@ -69,7 +69,7 @@ Esta aplicación forma parte del mismo proyecto que:
 * Enfoque híbrido
 
 ## ⚙️ Resultados
-# Módulo de Usuarios
+# Login y seguridad
 El módulo de autenticación, ha demostrado que el sistema permite el inicio de sesión seguro solo a usuarios con credenciales válidas y protege correctamente contra accesos no autorizados.
 
 <p align="center">
@@ -84,6 +84,8 @@ La funcionalidad de recuperación de contraseña permite a los usuarios restable
 
 Los procesos de asignación de roles aseguran que el sistema otorga correctamente los permisos correspondientes a cada perfil 
 (Usuario público, Vendedor,Responsable de piso, Administrador , Web Master), garantizando un control preciso sobre las acciones de los usuarios y contribuyendo a la seguridad y correcto funcionamiento de la plataforma.
+
+# Asignación de roles de usuarios
 
 **Perimisos de usuario**
 
